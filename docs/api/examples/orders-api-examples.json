@@ -1,0 +1,591 @@
+{
+  "endpoint": "POST /api/orders",
+  "description": "賽事報名訂單 API 範例",
+  "validationRules": {
+    "description": "請求驗證規則",
+    "rules": {
+      "eventId": {
+        "type": "UUID",
+        "required": true,
+        "validation": "必須是有效的 UUID 格式且賽事必須存在"
+      },
+      "parent.name": {
+        "type": "string",
+        "required": true,
+        "minLength": 2,
+        "maxLength": 50,
+        "validation": "姓名長度 2-50 字元"
+      },
+      "parent.email": {
+        "type": "string",
+        "required": true,
+        "format": "email",
+        "validation": "必須是有效的電子郵件格式"
+      },
+      "parent.phone": {
+        "type": "string",
+        "required": true,
+        "pattern": "^09\\d{8}$",
+        "validation": "必須是台灣手機號碼格式（09 開頭共 10 碼）"
+      },
+      "child.name": {
+        "type": "string",
+        "required": true,
+        "minLength": 2,
+        "maxLength": 50,
+        "validation": "姓名長度 2-50 字元"
+      },
+      "child.birthDate": {
+        "type": "date",
+        "required": true,
+        "format": "YYYY-MM-DD",
+        "validation": "出生日期用於計算賽事當日年齡"
+      },
+      "child.gender": {
+        "type": "enum",
+        "required": false,
+        "values": ["MALE", "FEMALE", "OTHER"],
+        "validation": "性別（可選）"
+      },
+      "emergencyContact": {
+        "type": "object",
+        "required": false,
+        "validation": "緊急聯絡人（可選，但若提供則 name 和 phone 必填）"
+      },
+      "notes": {
+        "type": "string",
+        "required": false,
+        "maxLength": 500,
+        "validation": "備註（可選），如過敏資訊、特殊需求等"
+      }
+    },
+    "businessRules": {
+      "ageValidation": {
+        "description": "年齡驗證規則",
+        "rule": "以賽事開始日期計算小孩年齡，必須在 event.ageRestriction.minAge 到 event.ageRestriction.maxAge 之間",
+        "formula": "childAgeAtEvent = floor((event.startTime - child.birthDate) / 365.25)",
+        "strictEnforcement": "若 event.ageRestriction.strictEnforcement 為 true，則嚴格驗證；否則可彈性處理"
+      },
+      "capacityCheck": {
+        "description": "名額檢查",
+        "rule": "event.registeredCount < event.capacity"
+      },
+      "registrationStatus": {
+        "description": "報名狀態檢查",
+        "rule": "event.registrationStatus 必須為 OPEN"
+      },
+      "duplicateCheck": {
+        "description": "重複報名檢查",
+        "rule": "同一小孩（依 name + birthDate 判斷）不可重複報名同一賽事"
+      }
+    }
+  },
+  "orderStatusLifecycle": {
+    "description": "訂單狀態生命週期",
+    "states": {
+      "PENDING": {
+        "description": "待付款",
+        "entryCondition": "訂單建立成功",
+        "nextStates": ["CONFIRMED", "CANCELLED"],
+        "autoTransition": {
+          "to": "CANCELLED",
+          "condition": "超過付款期限 (paymentDeadline)",
+          "description": "系統自動取消逾期未付款訂單"
+        }
+      },
+      "CONFIRMED": {
+        "description": "已確認",
+        "entryCondition": "付款成功",
+        "nextStates": ["REFUNDED", "COMPLETED"],
+        "actions": ["可申請退款（依退款政策）", "等待賽事進行"]
+      },
+      "CANCELLED": {
+        "description": "已取消",
+        "entryCondition": "使用者主動取消 或 逾期未付款",
+        "nextStates": [],
+        "terminal": true,
+        "note": "已取消的訂單無法恢復"
+      },
+      "REFUNDED": {
+        "description": "已退款",
+        "entryCondition": "退款申請通過 或 賽事取消",
+        "nextStates": [],
+        "terminal": true
+      },
+      "COMPLETED": {
+        "description": "已完成",
+        "entryCondition": "賽事結束",
+        "nextStates": [],
+        "terminal": true
+      }
+    },
+    "diagram": "PENDING -> CONFIRMED -> COMPLETED\n   |           |\n   v           v\nCANCELLED   REFUNDED"
+  },
+  "examples": {
+    "requests": {
+      "basic": {
+        "description": "基本報名請求（必填欄位）",
+        "body": {
+          "eventId": "550e8400-e29b-41d4-a716-446655440000",
+          "parent": {
+            "name": "王小明",
+            "email": "parent@example.com",
+            "phone": "0912345678"
+          },
+          "child": {
+            "name": "王小華",
+            "birthDate": "2016-05-15"
+          }
+        }
+      },
+      "complete": {
+        "description": "完整報名請求（包含所有欄位）",
+        "body": {
+          "eventId": "550e8400-e29b-41d4-a716-446655440000",
+          "parent": {
+            "name": "王小明",
+            "email": "parent@example.com",
+            "phone": "0912345678"
+          },
+          "child": {
+            "name": "王小華",
+            "birthDate": "2016-05-15",
+            "gender": "MALE"
+          },
+          "emergencyContact": {
+            "name": "王大明",
+            "phone": "0987654321",
+            "relationship": "父親"
+          },
+          "notes": "小孩對花生過敏，請注意活動期間的點心安排"
+        }
+      },
+      "withSpecialNeeds": {
+        "description": "有特殊需求的報名",
+        "body": {
+          "eventId": "550e8400-e29b-41d4-a716-446655440000",
+          "parent": {
+            "name": "李美玲",
+            "email": "mei.ling@example.com",
+            "phone": "0923456789"
+          },
+          "child": {
+            "name": "李小安",
+            "birthDate": "2017-08-20",
+            "gender": "FEMALE"
+          },
+          "emergencyContact": {
+            "name": "李大安",
+            "phone": "0934567890",
+            "relationship": "母親"
+          },
+          "notes": "小孩有氣喘，隨身攜帶吸入劑。劇烈運動後可能需要休息。"
+        }
+      }
+    },
+    "responses": {
+      "success": {
+        "httpStatus": 201,
+        "description": "訂單建立成功",
+        "body": {
+          "success": true,
+          "data": {
+            "id": "660e8400-e29b-41d4-a716-446655440000",
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "eventName": "2026 春季兒童籃球營",
+            "status": "PENDING",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2016-05-15",
+              "gender": "MALE"
+            },
+            "childAgeAtEvent": 10,
+            "emergencyContact": {
+              "name": "王大明",
+              "phone": "0987654321",
+              "relationship": "父親"
+            },
+            "notes": "小孩對花生過敏",
+            "fee": 1500,
+            "paymentDeadline": "2026-02-01T23:59:59+08:00",
+            "createdAt": "2026-01-26T10:30:00+08:00",
+            "updatedAt": "2026-01-26T10:30:00+08:00"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      }
+    },
+    "errors": {
+      "validation": {
+        "missingRequiredFields": {
+          "httpStatus": 400,
+          "description": "缺少必填欄位",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明"
+            },
+            "child": {}
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "請求參數驗證失敗",
+              "details": [
+                {
+                  "field": "parent.email",
+                  "reason": "must not be blank"
+                },
+                {
+                  "field": "parent.phone",
+                  "reason": "must not be blank"
+                },
+                {
+                  "field": "child.name",
+                  "reason": "must not be blank"
+                },
+                {
+                  "field": "child.birthDate",
+                  "reason": "must not be null"
+                }
+              ],
+              "traceId": "ord123def001"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "invalidEmailFormat": {
+          "httpStatus": 400,
+          "description": "電子郵件格式錯誤",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明",
+              "email": "invalid-email",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2016-05-15"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "電子郵件格式不正確",
+              "details": [
+                {
+                  "field": "parent.email",
+                  "reason": "must be a valid email address"
+                }
+              ],
+              "traceId": "ord123def002"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "invalidPhoneFormat": {
+          "httpStatus": 400,
+          "description": "電話格式錯誤",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "02-12345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2016-05-15"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "電話格式不正確，請使用手機號碼格式",
+              "details": [
+                {
+                  "field": "parent.phone",
+                  "reason": "must match pattern ^09\\d{8}$ (mobile phone starting with 09)"
+                }
+              ],
+              "traceId": "ord123def003"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "invalidDateFormat": {
+          "httpStatus": 400,
+          "description": "日期格式錯誤",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2016/05/15"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "日期格式錯誤",
+              "details": [
+                {
+                  "field": "child.birthDate",
+                  "reason": "must be in YYYY-MM-DD format"
+                }
+              ],
+              "traceId": "ord123def008"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      },
+      "business": {
+        "eventNotFound": {
+          "httpStatus": 404,
+          "description": "賽事不存在",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-999999999999",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2016-05-15"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "RESOURCE_NOT_FOUND",
+              "message": "找不到指定的賽事",
+              "details": [
+                {
+                  "field": "eventId",
+                  "reason": "event with the specified ID does not exist"
+                }
+              ],
+              "traceId": "ord123def009"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "ageNotEligible": {
+          "httpStatus": 409,
+          "description": "小孩年齡不符合賽事限制（年齡太小）",
+          "context": "賽事年齡限制為 8-12 歲，小孩於賽事當日只有 6 歲",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2020-05-15"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "AGE_NOT_ELIGIBLE",
+              "message": "小孩年齡不符合賽事年齡限制",
+              "details": [
+                {
+                  "field": "child.birthDate",
+                  "reason": "child age (6) is below minimum age requirement (8)"
+                }
+              ],
+              "traceId": "ord123def004"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "ageTooOld": {
+          "httpStatus": 409,
+          "description": "小孩年齡不符合賽事限制（年齡太大）",
+          "context": "賽事年齡限制為 8-12 歲，小孩於賽事當日已 15 歲",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小華",
+              "birthDate": "2011-01-10"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "AGE_NOT_ELIGIBLE",
+              "message": "小孩年齡不符合賽事年齡限制",
+              "details": [
+                {
+                  "field": "child.birthDate",
+                  "reason": "child age (15) exceeds maximum age limit (12)"
+                }
+              ],
+              "traceId": "ord123def010"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "eventFull": {
+          "httpStatus": 409,
+          "description": "賽事名額已滿",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "EVENT_FULL",
+              "message": "賽事名額已滿，無法報名",
+              "details": [
+                {
+                  "field": "eventId",
+                  "reason": "event has reached maximum capacity (30/30)"
+                }
+              ],
+              "traceId": "ord123def005"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "registrationClosed": {
+          "httpStatus": 409,
+          "description": "報名已截止",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "REGISTRATION_CLOSED",
+              "message": "賽事報名已截止",
+              "details": [
+                {
+                  "field": "eventId",
+                  "reason": "registration deadline was 2026-01-20T23:59:59+08:00"
+                }
+              ],
+              "traceId": "ord123def006"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "duplicateRegistration": {
+          "httpStatus": 409,
+          "description": "重複報名（同一小孩已報名該賽事）",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "DUPLICATE_REGISTRATION",
+              "message": "此小孩已報名該賽事",
+              "details": [
+                {
+                  "field": "child",
+                  "reason": "child (王小華, 2016-05-15) has already registered for this event with order ID: 660e8400-e29b-41d4-a716-446655440000"
+                }
+              ],
+              "traceId": "ord123def007"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      },
+      "server": {
+        "internalError": {
+          "httpStatus": 500,
+          "description": "伺服器內部錯誤",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "INTERNAL_SERVER_ERROR",
+              "message": "系統發生非預期錯誤，請稍後再試",
+              "traceId": "ord123def999"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      }
+    }
+  },
+  "aiAgentUsage": {
+    "description": "AI Agent 呼叫此 API 的建議用法",
+    "preConditions": [
+      "在呼叫 POST /api/orders 前，建議先呼叫 GET /api/events/{id} 確認賽事詳情",
+      "驗證使用者提供的小孩年齡是否符合賽事限制",
+      "告知使用者報名費用與付款期限"
+    ],
+    "toolDefinition": {
+      "name": "createEventRegistration",
+      "description": "為小孩報名體育賽事",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "description": "賽事 UUID"
+          },
+          "parentName": {
+            "type": "string",
+            "description": "家長姓名"
+          },
+          "parentEmail": {
+            "type": "string",
+            "description": "家長電子郵件"
+          },
+          "parentPhone": {
+            "type": "string",
+            "description": "家長手機號碼"
+          },
+          "childName": {
+            "type": "string",
+            "description": "小孩姓名"
+          },
+          "childBirthDate": {
+            "type": "string",
+            "description": "小孩出生日期 (YYYY-MM-DD)"
+          },
+          "notes": {
+            "type": "string",
+            "description": "備註（如過敏資訊）"
+          }
+        },
+        "required": ["eventId", "parentName", "parentEmail", "parentPhone", "childName", "childBirthDate"]
+      }
+    },
+    "exampleConversations": [
+      {
+        "userQuery": "我想幫我小孩報名籃球營",
+        "agentFlow": [
+          "1. 先詢問小孩年齡，搜尋適合的賽事",
+          "2. 展示符合條件的賽事列表",
+          "3. 使用者選擇後，確認賽事詳情",
+          "4. 收集報名所需資訊（家長、小孩資料）",
+          "5. 呼叫 createEventRegistration 完成報名",
+          "6. 告知使用者付款期限與後續流程"
+        ]
+      },
+      {
+        "userQuery": "我6歲的小孩可以報名這個活動嗎？",
+        "agentResponse": "根據賽事年齡限制（8-12歲），您 6 歲的小孩目前不符合報名資格。建議您可以查看其他適合 6 歲小朋友的活動，或等小孩到達適合年齡後再報名。"
+      }
+    ]
+  }
+}

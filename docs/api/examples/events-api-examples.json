@@ -1,0 +1,416 @@
+{
+  "endpoint": "GET /api/events",
+  "description": "賽事列表查詢 API 範例",
+  "examples": {
+    "requests": {
+      "basic": {
+        "description": "基本查詢（使用預設分頁）",
+        "url": "/api/events",
+        "queryParams": {}
+      },
+      "filterByAge": {
+        "description": "篩選適合 10 歲小孩的賽事",
+        "url": "/api/events?age=10",
+        "queryParams": {
+          "age": 10
+        }
+      },
+      "filterByDateRange": {
+        "description": "篩選 2026 年 3 月的賽事",
+        "url": "/api/events?dateFrom=2026-03-01&dateTo=2026-03-31",
+        "queryParams": {
+          "dateFrom": "2026-03-01",
+          "dateTo": "2026-03-31"
+        }
+      },
+      "filterByLocation": {
+        "description": "篩選台北的賽事",
+        "url": "/api/events?location=台北",
+        "queryParams": {
+          "location": "台北"
+        }
+      },
+      "combinedFilters": {
+        "description": "複合條件：台北地區、適合 8 歲、3 月份的賽事",
+        "url": "/api/events?age=8&dateFrom=2026-03-01&dateTo=2026-03-31&location=台北",
+        "queryParams": {
+          "age": 8,
+          "dateFrom": "2026-03-01",
+          "dateTo": "2026-03-31",
+          "location": "台北"
+        }
+      },
+      "withPagination": {
+        "description": "指定分頁參數",
+        "url": "/api/events?page=1&size=5",
+        "queryParams": {
+          "page": 1,
+          "size": 5
+        }
+      },
+      "withSortingDesc": {
+        "description": "依開始時間降冪排序（最新的在前）",
+        "url": "/api/events?sort=startTime,desc",
+        "queryParams": {
+          "sort": "startTime,desc"
+        }
+      },
+      "fullQuery": {
+        "description": "完整查詢範例：所有參數",
+        "url": "/api/events?age=10&dateFrom=2026-03-01&dateTo=2026-06-30&location=台北&page=0&size=10&sort=startTime,asc",
+        "queryParams": {
+          "age": 10,
+          "dateFrom": "2026-03-01",
+          "dateTo": "2026-06-30",
+          "location": "台北",
+          "page": 0,
+          "size": 10,
+          "sort": "startTime,asc"
+        }
+      }
+    },
+    "responses": {
+      "success": {
+        "httpStatus": 200,
+        "description": "成功回應 - 有資料",
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "550e8400-e29b-41d4-a716-446655440000",
+              "name": "2026 春季兒童籃球營",
+              "ageMin": 8,
+              "ageMax": 12,
+              "startTime": "2026-03-15T09:00:00+08:00",
+              "location": "台北市大安運動中心"
+            },
+            {
+              "id": "550e8400-e29b-41d4-a716-446655440001",
+              "name": "兒童游泳體驗班",
+              "ageMin": 6,
+              "ageMax": 10,
+              "startTime": "2026-03-20T14:00:00+08:00",
+              "location": "台北市信義運動中心"
+            },
+            {
+              "id": "550e8400-e29b-41d4-a716-446655440002",
+              "name": "親子足球同樂會",
+              "ageMin": 5,
+              "ageMax": 8,
+              "startTime": "2026-03-25T10:00:00+08:00",
+              "location": "台北市內湖運動公園"
+            }
+          ],
+          "page": {
+            "page": 0,
+            "size": 10,
+            "totalElements": 3,
+            "totalPages": 1,
+            "hasNext": false,
+            "hasPrevious": false
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "successEmpty": {
+        "httpStatus": 200,
+        "description": "成功回應 - 無資料",
+        "body": {
+          "success": true,
+          "data": [],
+          "page": {
+            "page": 0,
+            "size": 10,
+            "totalElements": 0,
+            "totalPages": 0,
+            "hasNext": false,
+            "hasPrevious": false
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "successWithPagination": {
+        "httpStatus": 200,
+        "description": "成功回應 - 有多頁資料",
+        "body": {
+          "success": true,
+          "data": [
+            {
+              "id": "550e8400-e29b-41d4-a716-446655440010",
+              "name": "兒童羽球夏令營",
+              "ageMin": 7,
+              "ageMax": 11,
+              "startTime": "2026-04-01T09:00:00+08:00",
+              "location": "台北市中山運動中心"
+            },
+            {
+              "id": "550e8400-e29b-41d4-a716-446655440011",
+              "name": "幼兒體操班",
+              "ageMin": 4,
+              "ageMax": 6,
+              "startTime": "2026-04-05T14:00:00+08:00",
+              "location": "台北市松山運動中心"
+            }
+          ],
+          "page": {
+            "page": 1,
+            "size": 2,
+            "totalElements": 25,
+            "totalPages": 13,
+            "hasNext": true,
+            "hasPrevious": true
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      }
+    },
+    "errors": {
+      "invalidAge": {
+        "httpStatus": 400,
+        "description": "年齡參數超出範圍",
+        "request": "/api/events?age=25",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "年齡參數必須介於 1 到 18 之間",
+            "details": [
+              {
+                "field": "age",
+                "reason": "must be between 1 and 18"
+              }
+            ],
+            "traceId": "abc123def456"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "invalidAgeNegative": {
+        "httpStatus": 400,
+        "description": "年齡參數為負數",
+        "request": "/api/events?age=-1",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "年齡參數必須介於 1 到 18 之間",
+            "details": [
+              {
+                "field": "age",
+                "reason": "must be greater than or equal to 1"
+              }
+            ],
+            "traceId": "abc123def457"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "invalidDateFormat": {
+        "httpStatus": 400,
+        "description": "日期格式錯誤",
+        "request": "/api/events?dateFrom=2026/03/01",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "日期格式錯誤，請使用 YYYY-MM-DD 格式",
+            "details": [
+              {
+                "field": "dateFrom",
+                "reason": "must be in YYYY-MM-DD format"
+              }
+            ],
+            "traceId": "abc123def458"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "invalidDateRange": {
+        "httpStatus": 400,
+        "description": "日期區間邏輯錯誤（結束日期早於開始日期）",
+        "request": "/api/events?dateFrom=2026-03-31&dateTo=2026-03-01",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "結束日期不可早於開始日期",
+            "details": [
+              {
+                "field": "dateFrom",
+                "reason": "dateFrom must be before or equal to dateTo"
+              },
+              {
+                "field": "dateTo",
+                "reason": "dateTo must be after or equal to dateFrom"
+              }
+            ],
+            "traceId": "abc123def789"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "invalidPage": {
+        "httpStatus": 400,
+        "description": "頁碼參數為負數",
+        "request": "/api/events?page=-1",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "頁碼不可為負數",
+            "details": [
+              {
+                "field": "page",
+                "reason": "must be greater than or equal to 0"
+              }
+            ],
+            "traceId": "abc123def460"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "invalidSize": {
+        "httpStatus": 400,
+        "description": "每頁筆數超出範圍",
+        "request": "/api/events?size=500",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "每頁筆數必須介於 1 到 100 之間",
+            "details": [
+              {
+                "field": "size",
+                "reason": "must be between 1 and 100"
+              }
+            ],
+            "traceId": "abc123def461"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "invalidSortField": {
+        "httpStatus": 400,
+        "description": "不支援的排序欄位",
+        "request": "/api/events?sort=name,asc",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "不支援的排序欄位",
+            "details": [
+              {
+                "field": "sort",
+                "reason": "only 'startTime,asc' or 'startTime,desc' are supported"
+              }
+            ],
+            "traceId": "abc123def462"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "multipleErrors": {
+        "httpStatus": 400,
+        "description": "多個參數錯誤",
+        "request": "/api/events?age=25&page=-1",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "請求參數驗證失敗",
+            "details": [
+              {
+                "field": "age",
+                "reason": "must be between 1 and 18"
+              },
+              {
+                "field": "page",
+                "reason": "must be greater than or equal to 0"
+              }
+            ],
+            "traceId": "abc123def463"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "internalServerError": {
+        "httpStatus": 500,
+        "description": "伺服器內部錯誤（例如資料庫連線失敗）",
+        "request": "/api/events",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "系統發生非預期錯誤，請稍後再試",
+            "traceId": "xyz789abc123"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "serviceUnavailable": {
+        "httpStatus": 500,
+        "description": "服務暫時無法使用",
+        "request": "/api/events",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "SERVICE_UNAVAILABLE",
+            "message": "服務暫時無法使用，請稍後再試",
+            "traceId": "xyz789abc124"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      }
+    }
+  },
+  "aiAgentUsage": {
+    "description": "AI Agent 呼叫此 API 的建議用法",
+    "toolDefinition": {
+      "name": "searchEvents",
+      "description": "搜尋兒童體育賽事，可依年齡、日期、地點篩選",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "age": {
+            "type": "integer",
+            "description": "小孩年齡"
+          },
+          "dateFrom": {
+            "type": "string",
+            "description": "開始日期 (YYYY-MM-DD)"
+          },
+          "dateTo": {
+            "type": "string",
+            "description": "結束日期 (YYYY-MM-DD)"
+          },
+          "location": {
+            "type": "string",
+            "description": "地點關鍵字"
+          }
+        }
+      }
+    },
+    "exampleConversations": [
+      {
+        "userQuery": "我的小孩8歲，有什麼適合的運動賽事？",
+        "toolCall": {
+          "name": "searchEvents",
+          "arguments": {
+            "age": 8
+          }
+        }
+      },
+      {
+        "userQuery": "請問台北3月有什麼兒童運動活動？",
+        "toolCall": {
+          "name": "searchEvents",
+          "arguments": {
+            "location": "台北",
+            "dateFrom": "2026-03-01",
+            "dateTo": "2026-03-31"
+          }
+        }
+      }
+    ]
+  }
+}

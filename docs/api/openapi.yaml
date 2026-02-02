@@ -1,0 +1,1569 @@
+openapi: 3.0.3
+info:
+  title: AI Sports Event Platform API
+  description: AI 驅動的兒童體育賽事電商平台 API
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Events
+    description: 賽事相關 API
+  - name: Orders
+    description: 報名訂單相關 API
+  - name: Admin
+    description: 管理員 API（需要管理員權限）
+
+paths:
+  /api/events:
+    get:
+      tags:
+        - Events
+      summary: 查詢賽事列表
+      description: |
+        查詢賽事列表，支援依年齡、日期區間、地點篩選，以及分頁與排序功能。
+        此 API 設計為 AI Agent 可呼叫的工具，回傳結構化資料便於 AI 處理。
+      operationId: getEvents
+      parameters:
+        # Filters
+        - name: age
+          in: query
+          description: 依參賽者年齡篩選（會回傳 age_min <= age <= age_max 的賽事）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 18
+            example: 10
+        - name: dateFrom
+          in: query
+          description: 賽事開始日期區間起點（含）
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-02-01"
+        - name: dateTo
+          in: query
+          description: 賽事開始日期區間終點（含）
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-03-31"
+        - name: location
+          in: query
+          description: 依地點篩選（模糊比對）
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+            example: "台北"
+        # Pagination
+        - name: page
+          in: query
+          description: 頁碼（從 0 開始）
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+        - name: size
+          in: query
+          description: 每頁筆數
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+        # Sorting
+        - name: sort
+          in: query
+          description: 排序欄位與方向
+          required: false
+          schema:
+            type: string
+            enum:
+              - startTime,asc
+              - startTime,desc
+            default: "startTime,asc"
+            example: "startTime,asc"
+      responses:
+        "200":
+          description: 成功取得賽事列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventPageResponse"
+              examples:
+                success:
+                  $ref: "#/components/examples/EventPageResponseExample"
+        "400":
+          description: 請求參數錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidAge:
+                  $ref: "#/components/examples/InvalidAgeError"
+                invalidDateRange:
+                  $ref: "#/components/examples/InvalidDateRangeError"
+        "500":
+          description: 伺服器內部錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                serverError:
+                  $ref: "#/components/examples/ServerError"
+
+  /api/events/{id}:
+    get:
+      tags:
+        - Events
+      summary: 取得賽事詳情
+      description: |
+        根據賽事 ID 取得完整賽事資訊，包含年齡限制、報名狀態等詳細資料。
+        此 API 可供 AI Agent 呼叫，取得特定賽事的完整資訊以回答使用者問題。
+      operationId: getEventById
+      parameters:
+        - name: id
+          in: path
+          description: 賽事唯一識別碼
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        "200":
+          description: 成功取得賽事詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventDetailResponse"
+              examples:
+                success:
+                  $ref: "#/components/examples/EventDetailResponseExample"
+        "400":
+          description: 請求參數錯誤（ID 格式不正確）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidId:
+                  $ref: "#/components/examples/InvalidIdError"
+        "404":
+          description: 賽事不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                notFound:
+                  $ref: "#/components/examples/EventNotFoundError"
+        "500":
+          description: 伺服器內部錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                serverError:
+                  $ref: "#/components/examples/ServerError"
+
+  /api/orders:
+    post:
+      tags:
+        - Orders
+      summary: 建立報名訂單
+      description: |
+        為指定賽事建立報名訂單。系統會驗證：
+        1. 賽事是否存在且報名開放中
+        2. 小孩年齡是否符合賽事年齡限制
+        3. 賽事是否還有名額
+
+        訂單建立後狀態為 PENDING，等待付款確認。
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+            examples:
+              basic:
+                $ref: "#/components/examples/CreateOrderRequestExample"
+      responses:
+        "201":
+          description: 訂單建立成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+              examples:
+                success:
+                  $ref: "#/components/examples/OrderCreatedExample"
+        "400":
+          description: 請求參數驗證失敗
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missingField:
+                  $ref: "#/components/examples/OrderMissingFieldError"
+                invalidEmail:
+                  $ref: "#/components/examples/OrderInvalidEmailError"
+                invalidPhone:
+                  $ref: "#/components/examples/OrderInvalidPhoneError"
+        "404":
+          description: 賽事不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                eventNotFound:
+                  $ref: "#/components/examples/EventNotFoundError"
+        "409":
+          description: 業務邏輯衝突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                ageNotEligible:
+                  $ref: "#/components/examples/OrderAgeNotEligibleError"
+                eventFull:
+                  $ref: "#/components/examples/OrderEventFullError"
+                registrationClosed:
+                  $ref: "#/components/examples/OrderRegistrationClosedError"
+                duplicateRegistration:
+                  $ref: "#/components/examples/OrderDuplicateError"
+        "500":
+          description: 伺服器內部錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                serverError:
+                  $ref: "#/components/examples/ServerError"
+
+  /api/admin/events:
+    get:
+      tags:
+        - Admin
+      summary: 管理員查詢賽事列表
+      description: |
+        管理員查看所有賽事列表，包含報名統計等管理資訊。
+
+        **權限要求**: 此 API 需要管理員權限。在實際環境中，需透過 JWT token 或 session 驗證管理員身份。
+        在此示範專案中，假設已通過認證機制驗證管理員身份。
+      operationId: adminGetEvents
+      parameters:
+        - name: status
+          in: query
+          description: 依賽事報名狀態篩選
+          required: false
+          schema:
+            type: string
+            enum:
+              - OPEN
+              - CLOSED
+              - FULL
+            example: "OPEN"
+        - name: dateFrom
+          in: query
+          description: 賽事開始日期區間起點
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-02-01"
+        - name: dateTo
+          in: query
+          description: 賽事開始日期區間終點
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2026-03-31"
+        - name: page
+          in: query
+          description: 頁碼（從 0 開始）
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+        - name: size
+          in: query
+          description: 每頁筆數
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: sort
+          in: query
+          description: 排序欄位與方向
+          required: false
+          schema:
+            type: string
+            enum:
+              - createdAt,desc
+              - createdAt,asc
+              - startTime,asc
+              - startTime,desc
+            default: "createdAt,desc"
+            example: "createdAt,desc"
+      responses:
+        "200":
+          description: 成功取得賽事列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminEventPageResponse"
+              examples:
+                success:
+                  $ref: "#/components/examples/AdminEventPageResponseExample"
+        "401":
+          description: 未認證或認證失效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                unauthorized:
+                  $ref: "#/components/examples/UnauthorizedError"
+        "403":
+          description: 權限不足（非管理員）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                forbidden:
+                  $ref: "#/components/examples/ForbiddenError"
+        "500":
+          description: 伺服器內部錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                serverError:
+                  $ref: "#/components/examples/ServerError"
+
+    post:
+      tags:
+        - Admin
+      summary: 管理員建立賽事
+      description: |
+        管理員建立新賽事。
+
+        **權限要求**: 此 API 需要管理員權限。
+      operationId: adminCreateEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventRequest"
+            examples:
+              basic:
+                $ref: "#/components/examples/CreateEventRequestExample"
+      responses:
+        "201":
+          description: 賽事建立成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminEventResponse"
+              examples:
+                success:
+                  $ref: "#/components/examples/AdminEventCreatedExample"
+        "400":
+          description: 請求參數驗證失敗
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                validationError:
+                  $ref: "#/components/examples/AdminEventValidationError"
+        "401":
+          description: 未認證或認證失效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                unauthorized:
+                  $ref: "#/components/examples/UnauthorizedError"
+        "403":
+          description: 權限不足（非管理員）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                forbidden:
+                  $ref: "#/components/examples/ForbiddenError"
+        "500":
+          description: 伺服器內部錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                serverError:
+                  $ref: "#/components/examples/ServerError"
+
+components:
+  schemas:
+    Event:
+      type: object
+      description: 賽事資料
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 賽事唯一識別碼
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: 賽事名稱
+          example: "2026 春季兒童籃球營"
+        ageMin:
+          type: integer
+          description: 最小參賽年齡
+          example: 8
+        ageMax:
+          type: integer
+          description: 最大參賽年齡
+          example: 12
+        startTime:
+          type: string
+          format: date-time
+          description: 賽事開始時間
+          example: "2026-03-15T09:00:00+08:00"
+        location:
+          type: string
+          description: 賽事地點
+          example: "台北市大安運動中心"
+      required:
+        - id
+        - name
+        - ageMin
+        - ageMax
+        - startTime
+        - location
+
+    EventDetail:
+      type: object
+      description: 賽事完整詳情
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 賽事唯一識別碼
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: 賽事名稱
+          example: "2026 春季兒童籃球營"
+        description:
+          type: string
+          description: 賽事詳細說明
+          example: "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧。"
+        ageRestriction:
+          $ref: "#/components/schemas/AgeRestriction"
+        startTime:
+          type: string
+          format: date-time
+          description: 賽事開始時間
+          example: "2026-03-15T09:00:00+08:00"
+        endTime:
+          type: string
+          format: date-time
+          description: 賽事結束時間
+          example: "2026-03-15T12:00:00+08:00"
+        location:
+          type: string
+          description: 賽事地點
+          example: "台北市大安運動中心"
+        address:
+          type: string
+          description: 詳細地址
+          example: "台北市大安區辛亥路三段55號"
+        capacity:
+          type: integer
+          description: 最大參加人數
+          example: 30
+        registeredCount:
+          type: integer
+          description: 已報名人數
+          example: 18
+        registrationStatus:
+          type: string
+          description: 報名狀態
+          enum:
+            - OPEN
+            - CLOSED
+            - FULL
+          example: "OPEN"
+        registrationDeadline:
+          type: string
+          format: date-time
+          description: 報名截止時間
+          example: "2026-03-10T23:59:59+08:00"
+        fee:
+          type: number
+          format: decimal
+          description: 報名費用（新台幣）
+          example: 1500
+        organizer:
+          type: string
+          description: 主辦單位
+          example: "台北市籃球協會"
+        contactEmail:
+          type: string
+          format: email
+          description: 聯絡信箱
+          example: "events@basketball.org.tw"
+        contactPhone:
+          type: string
+          description: 聯絡電話
+          example: "02-1234-5678"
+        createdAt:
+          type: string
+          format: date-time
+          description: 建立時間
+          example: "2026-01-01T10:00:00+08:00"
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最後更新時間
+          example: "2026-01-20T15:30:00+08:00"
+      required:
+        - id
+        - name
+        - ageRestriction
+        - startTime
+        - location
+        - capacity
+        - registeredCount
+        - registrationStatus
+        - fee
+
+    AgeRestriction:
+      type: object
+      description: 年齡限制資訊
+      properties:
+        minAge:
+          type: integer
+          description: 最小參賽年齡
+          example: 8
+        maxAge:
+          type: integer
+          description: 最大參賽年齡
+          example: 12
+        description:
+          type: string
+          description: 年齡限制說明（人類可讀）
+          example: "適合 8 至 12 歲兒童參加"
+        strictEnforcement:
+          type: boolean
+          description: 是否嚴格執行年齡限制
+          example: true
+      required:
+        - minAge
+        - maxAge
+        - description
+
+    EventDetailResponse:
+      type: object
+      description: 賽事詳情回應
+      properties:
+        success:
+          type: boolean
+          description: 請求是否成功
+          example: true
+        data:
+          $ref: "#/components/schemas/EventDetail"
+        timestamp:
+          type: string
+          format: date-time
+          description: 回應時間戳記
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - success
+        - data
+        - timestamp
+
+    PageInfo:
+      type: object
+      description: 分頁資訊
+      properties:
+        page:
+          type: integer
+          description: 目前頁碼（從 0 開始）
+          example: 0
+        size:
+          type: integer
+          description: 每頁筆數
+          example: 10
+        totalElements:
+          type: integer
+          format: int64
+          description: 總筆數
+          example: 25
+        totalPages:
+          type: integer
+          description: 總頁數
+          example: 3
+        hasNext:
+          type: boolean
+          description: 是否有下一頁
+          example: true
+        hasPrevious:
+          type: boolean
+          description: 是否有上一頁
+          example: false
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - hasNext
+        - hasPrevious
+
+    EventPageResponse:
+      type: object
+      description: 賽事列表分頁回應
+      properties:
+        success:
+          type: boolean
+          description: 請求是否成功
+          example: true
+        data:
+          type: array
+          description: 賽事列表
+          items:
+            $ref: "#/components/schemas/Event"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+        timestamp:
+          type: string
+          format: date-time
+          description: 回應時間戳記
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - success
+        - data
+        - page
+        - timestamp
+
+    # ===== Order Schemas =====
+
+    CreateOrderRequest:
+      type: object
+      description: 建立訂單請求
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: 賽事 ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        parent:
+          $ref: "#/components/schemas/ParentInfo"
+        child:
+          $ref: "#/components/schemas/ChildInfo"
+        emergencyContact:
+          $ref: "#/components/schemas/EmergencyContact"
+        notes:
+          type: string
+          description: 備註（可選）
+          maxLength: 500
+          example: "小孩對花生過敏"
+      required:
+        - eventId
+        - parent
+        - child
+
+    ParentInfo:
+      type: object
+      description: 家長資訊
+      properties:
+        name:
+          type: string
+          description: 家長姓名
+          minLength: 2
+          maxLength: 50
+          example: "王小明"
+        email:
+          type: string
+          format: email
+          description: 電子郵件
+          example: "parent@example.com"
+        phone:
+          type: string
+          description: 聯絡電話
+          pattern: "^09\\d{8}$"
+          example: "0912345678"
+      required:
+        - name
+        - email
+        - phone
+
+    ChildInfo:
+      type: object
+      description: 小孩資訊
+      properties:
+        name:
+          type: string
+          description: 小孩姓名
+          minLength: 2
+          maxLength: 50
+          example: "王小華"
+        birthDate:
+          type: string
+          format: date
+          description: 出生日期（用於計算年齡）
+          example: "2016-05-15"
+        gender:
+          type: string
+          description: 性別
+          enum:
+            - MALE
+            - FEMALE
+            - OTHER
+          example: "MALE"
+      required:
+        - name
+        - birthDate
+
+    EmergencyContact:
+      type: object
+      description: 緊急聯絡人（可選）
+      properties:
+        name:
+          type: string
+          description: 緊急聯絡人姓名
+          minLength: 2
+          maxLength: 50
+          example: "王大明"
+        phone:
+          type: string
+          description: 緊急聯絡電話
+          pattern: "^09\\d{8}$"
+          example: "0987654321"
+        relationship:
+          type: string
+          description: 與小孩關係
+          example: "父親"
+      required:
+        - name
+        - phone
+
+    Order:
+      type: object
+      description: 訂單資料
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 訂單唯一識別碼
+          example: "660e8400-e29b-41d4-a716-446655440000"
+        eventId:
+          type: string
+          format: uuid
+          description: 賽事 ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        eventName:
+          type: string
+          description: 賽事名稱
+          example: "2026 春季兒童籃球營"
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        parent:
+          $ref: "#/components/schemas/ParentInfo"
+        child:
+          $ref: "#/components/schemas/ChildInfo"
+        childAgeAtEvent:
+          type: integer
+          description: 小孩於賽事當日的年齡
+          example: 10
+        emergencyContact:
+          $ref: "#/components/schemas/EmergencyContact"
+        notes:
+          type: string
+          description: 備註
+          example: "小孩對花生過敏"
+        fee:
+          type: number
+          format: decimal
+          description: 報名費用
+          example: 1500
+        paymentDeadline:
+          type: string
+          format: date-time
+          description: 付款期限
+          example: "2026-02-01T23:59:59+08:00"
+        createdAt:
+          type: string
+          format: date-time
+          description: 建立時間
+          example: "2026-01-26T10:30:00+08:00"
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最後更新時間
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - id
+        - eventId
+        - eventName
+        - status
+        - parent
+        - child
+        - childAgeAtEvent
+        - fee
+        - createdAt
+
+    OrderStatus:
+      type: string
+      description: |
+        訂單狀態生命週期：
+        - PENDING: 待付款（訂單建立後的初始狀態）
+        - CONFIRMED: 已確認（付款完成）
+        - CANCELLED: 已取消（使用者主動取消或逾期未付款）
+        - REFUNDED: 已退款（賽事取消或申請退款成功）
+        - COMPLETED: 已完成（賽事結束）
+      enum:
+        - PENDING
+        - CONFIRMED
+        - CANCELLED
+        - REFUNDED
+        - COMPLETED
+      example: "PENDING"
+
+    OrderResponse:
+      type: object
+      description: 訂單回應
+      properties:
+        success:
+          type: boolean
+          description: 請求是否成功
+          example: true
+        data:
+          $ref: "#/components/schemas/Order"
+        timestamp:
+          type: string
+          format: date-time
+          description: 回應時間戳記
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - success
+        - data
+        - timestamp
+
+    # ===== Admin Schemas =====
+
+    CreateEventRequest:
+      type: object
+      description: 建立賽事請求
+      properties:
+        name:
+          type: string
+          description: 賽事名稱
+          minLength: 5
+          maxLength: 100
+          example: "2026 春季兒童籃球營"
+        description:
+          type: string
+          description: 賽事詳細說明
+          minLength: 10
+          maxLength: 2000
+          example: "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。"
+        ageMin:
+          type: integer
+          description: 最小參賽年齡
+          minimum: 1
+          maximum: 18
+          example: 8
+        ageMax:
+          type: integer
+          description: 最大參賽年齡
+          minimum: 1
+          maximum: 18
+          example: 12
+        ageRestrictionNote:
+          type: string
+          description: 年齡限制說明（選填，系統會自動生成）
+          maxLength: 200
+          example: "適合 8 至 12 歲兒童參加"
+        strictAgeEnforcement:
+          type: boolean
+          description: 是否嚴格執行年齡限制
+          default: true
+          example: true
+        startTime:
+          type: string
+          format: date-time
+          description: 賽事開始時間
+          example: "2026-03-15T09:00:00+08:00"
+        endTime:
+          type: string
+          format: date-time
+          description: 賽事結束時間
+          example: "2026-03-15T12:00:00+08:00"
+        location:
+          type: string
+          description: 賽事地點
+          minLength: 3
+          maxLength: 100
+          example: "台北市大安運動中心"
+        address:
+          type: string
+          description: 詳細地址
+          maxLength: 200
+          example: "台北市大安區辛亥路三段55號"
+        capacity:
+          type: integer
+          description: 最大參加人數
+          minimum: 1
+          maximum: 1000
+          example: 30
+        registrationDeadline:
+          type: string
+          format: date-time
+          description: 報名截止時間
+          example: "2026-03-10T23:59:59+08:00"
+        fee:
+          type: number
+          format: decimal
+          description: 報名費用（新台幣）
+          minimum: 0
+          example: 1500
+        organizer:
+          type: string
+          description: 主辦單位
+          minLength: 2
+          maxLength: 100
+          example: "台北市籃球協會"
+        contactEmail:
+          type: string
+          format: email
+          description: 聯絡信箱
+          example: "events@basketball.org.tw"
+        contactPhone:
+          type: string
+          description: 聯絡電話
+          pattern: "^0\\d{1,2}-?\\d{7,8}$"
+          example: "02-1234-5678"
+      required:
+        - name
+        - description
+        - ageMin
+        - ageMax
+        - startTime
+        - endTime
+        - location
+        - capacity
+        - registrationDeadline
+        - fee
+        - organizer
+        - contactEmail
+        - contactPhone
+
+    AdminEventDetail:
+      type: object
+      description: 管理員視角的賽事詳情（包含統計資訊）
+      allOf:
+        - $ref: "#/components/schemas/EventDetail"
+        - type: object
+          properties:
+            statistics:
+              $ref: "#/components/schemas/EventStatistics"
+
+    EventStatistics:
+      type: object
+      description: 賽事統計資訊
+      properties:
+        totalRevenue:
+          type: number
+          format: decimal
+          description: 總收入（已確認付款的訂單）
+          example: 27000
+        pendingRevenue:
+          type: number
+          format: decimal
+          description: 待收入（待付款的訂單）
+          example: 4500
+        confirmedOrders:
+          type: integer
+          description: 已確認訂單數
+          example: 18
+        pendingOrders:
+          type: integer
+          description: 待付款訂單數
+          example: 3
+        cancelledOrders:
+          type: integer
+          description: 已取消訂單數
+          example: 2
+        averageChildAge:
+          type: number
+          format: double
+          description: 平均參賽兒童年齡
+          example: 9.8
+      required:
+        - totalRevenue
+        - pendingRevenue
+        - confirmedOrders
+        - pendingOrders
+        - cancelledOrders
+
+    AdminEventResponse:
+      type: object
+      description: 管理員賽事回應
+      properties:
+        success:
+          type: boolean
+          description: 請求是否成功
+          example: true
+        data:
+          $ref: "#/components/schemas/AdminEventDetail"
+        timestamp:
+          type: string
+          format: date-time
+          description: 回應時間戳記
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - success
+        - data
+        - timestamp
+
+    AdminEventPageResponse:
+      type: object
+      description: 管理員賽事列表分頁回應
+      properties:
+        success:
+          type: boolean
+          description: 請求是否成功
+          example: true
+        data:
+          type: array
+          description: 賽事列表
+          items:
+            $ref: "#/components/schemas/AdminEventDetail"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+        timestamp:
+          type: string
+          format: date-time
+          description: 回應時間戳記
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - success
+        - data
+        - page
+        - timestamp
+
+    # ===== Error Schema =====
+
+    ErrorResponse:
+      type: object
+      description: 錯誤回應
+      properties:
+        success:
+          type: boolean
+          description: 請求是否成功
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: 錯誤代碼
+              example: "INVALID_PARAMETER"
+            message:
+              type: string
+              description: 錯誤訊息（使用者可讀）
+              example: "年齡參數必須介於 1 到 18 之間"
+            details:
+              type: array
+              description: 詳細錯誤資訊（可選）
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    description: 錯誤欄位
+                    example: "age"
+                  reason:
+                    type: string
+                    description: 錯誤原因
+                    example: "must be between 1 and 18"
+            traceId:
+              type: string
+              description: 追蹤識別碼（用於除錯）
+              example: "abc123def456"
+          required:
+            - code
+            - message
+        timestamp:
+          type: string
+          format: date-time
+          description: 回應時間戳記
+          example: "2026-01-26T10:30:00+08:00"
+      required:
+        - success
+        - error
+        - timestamp
+
+  examples:
+    EventPageResponseExample:
+      summary: 成功回應範例
+      value:
+        success: true
+        data:
+          - id: "550e8400-e29b-41d4-a716-446655440000"
+            name: "2026 春季兒童籃球營"
+            ageMin: 8
+            ageMax: 12
+            startTime: "2026-03-15T09:00:00+08:00"
+            location: "台北市大安運動中心"
+          - id: "550e8400-e29b-41d4-a716-446655440001"
+            name: "兒童游泳體驗班"
+            ageMin: 6
+            ageMax: 10
+            startTime: "2026-03-20T14:00:00+08:00"
+            location: "台北市信義運動中心"
+        page:
+          page: 0
+          size: 10
+          totalElements: 2
+          totalPages: 1
+          hasNext: false
+          hasPrevious: false
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    InvalidAgeError:
+      summary: 年齡參數錯誤
+      value:
+        success: false
+        error:
+          code: "INVALID_PARAMETER"
+          message: "年齡參數必須介於 1 到 18 之間"
+          details:
+            - field: "age"
+              reason: "must be between 1 and 18"
+          traceId: "abc123def456"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    InvalidDateRangeError:
+      summary: 日期區間錯誤
+      value:
+        success: false
+        error:
+          code: "INVALID_PARAMETER"
+          message: "結束日期不可早於開始日期"
+          details:
+            - field: "dateFrom"
+              reason: "dateFrom must be before or equal to dateTo"
+            - field: "dateTo"
+              reason: "dateTo must be after or equal to dateFrom"
+          traceId: "abc123def789"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    ServerError:
+      summary: 伺服器內部錯誤
+      value:
+        success: false
+        error:
+          code: "INTERNAL_SERVER_ERROR"
+          message: "系統發生非預期錯誤，請稍後再試"
+          traceId: "xyz789abc123"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    EventDetailResponseExample:
+      summary: 賽事詳情成功回應
+      value:
+        success: true
+        data:
+          id: "550e8400-e29b-41d4-a716-446655440000"
+          name: "2026 春季兒童籃球營"
+          description: "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。活動結束後將舉辦小型友誼賽。"
+          ageRestriction:
+            minAge: 8
+            maxAge: 12
+            description: "適合 8 至 12 歲兒童參加"
+            strictEnforcement: true
+          startTime: "2026-03-15T09:00:00+08:00"
+          endTime: "2026-03-15T12:00:00+08:00"
+          location: "台北市大安運動中心"
+          address: "台北市大安區辛亥路三段55號"
+          capacity: 30
+          registeredCount: 18
+          registrationStatus: "OPEN"
+          registrationDeadline: "2026-03-10T23:59:59+08:00"
+          fee: 1500
+          organizer: "台北市籃球協會"
+          contactEmail: "events@basketball.org.tw"
+          contactPhone: "02-1234-5678"
+          createdAt: "2026-01-01T10:00:00+08:00"
+          updatedAt: "2026-01-20T15:30:00+08:00"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    InvalidIdError:
+      summary: ID 格式錯誤
+      value:
+        success: false
+        error:
+          code: "INVALID_PARAMETER"
+          message: "賽事 ID 格式不正確"
+          details:
+            - field: "id"
+              reason: "must be a valid UUID format"
+          traceId: "abc123def470"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    EventNotFoundError:
+      summary: 賽事不存在
+      value:
+        success: false
+        error:
+          code: "RESOURCE_NOT_FOUND"
+          message: "找不到指定的賽事"
+          details:
+            - field: "id"
+              reason: "event with the specified ID does not exist"
+          traceId: "abc123def471"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    # ===== Order Examples =====
+
+    CreateOrderRequestExample:
+      summary: 建立訂單請求範例
+      value:
+        eventId: "550e8400-e29b-41d4-a716-446655440000"
+        parent:
+          name: "王小明"
+          email: "parent@example.com"
+          phone: "0912345678"
+        child:
+          name: "王小華"
+          birthDate: "2016-05-15"
+          gender: "MALE"
+        emergencyContact:
+          name: "王大明"
+          phone: "0987654321"
+          relationship: "父親"
+        notes: "小孩對花生過敏"
+
+    OrderCreatedExample:
+      summary: 訂單建立成功
+      value:
+        success: true
+        data:
+          id: "660e8400-e29b-41d4-a716-446655440000"
+          eventId: "550e8400-e29b-41d4-a716-446655440000"
+          eventName: "2026 春季兒童籃球營"
+          status: "PENDING"
+          parent:
+            name: "王小明"
+            email: "parent@example.com"
+            phone: "0912345678"
+          child:
+            name: "王小華"
+            birthDate: "2016-05-15"
+            gender: "MALE"
+          childAgeAtEvent: 10
+          emergencyContact:
+            name: "王大明"
+            phone: "0987654321"
+            relationship: "父親"
+          notes: "小孩對花生過敏"
+          fee: 1500
+          paymentDeadline: "2026-02-01T23:59:59+08:00"
+          createdAt: "2026-01-26T10:30:00+08:00"
+          updatedAt: "2026-01-26T10:30:00+08:00"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderMissingFieldError:
+      summary: 缺少必填欄位
+      value:
+        success: false
+        error:
+          code: "VALIDATION_ERROR"
+          message: "請求參數驗證失敗"
+          details:
+            - field: "parent.name"
+              reason: "must not be blank"
+            - field: "child.birthDate"
+              reason: "must not be null"
+          traceId: "ord123def001"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderInvalidEmailError:
+      summary: 電子郵件格式錯誤
+      value:
+        success: false
+        error:
+          code: "VALIDATION_ERROR"
+          message: "電子郵件格式不正確"
+          details:
+            - field: "parent.email"
+              reason: "must be a valid email address"
+          traceId: "ord123def002"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderInvalidPhoneError:
+      summary: 電話格式錯誤
+      value:
+        success: false
+        error:
+          code: "VALIDATION_ERROR"
+          message: "電話格式不正確"
+          details:
+            - field: "parent.phone"
+              reason: "must match pattern ^09\\d{8}$"
+          traceId: "ord123def003"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderAgeNotEligibleError:
+      summary: 小孩年齡不符合賽事限制
+      value:
+        success: false
+        error:
+          code: "AGE_NOT_ELIGIBLE"
+          message: "小孩年齡不符合賽事年齡限制"
+          details:
+            - field: "child.birthDate"
+              reason: "child age (6) is not within event age range (8-12)"
+          traceId: "ord123def004"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderEventFullError:
+      summary: 賽事名額已滿
+      value:
+        success: false
+        error:
+          code: "EVENT_FULL"
+          message: "賽事名額已滿，無法報名"
+          details:
+            - field: "eventId"
+              reason: "event has reached maximum capacity (30/30)"
+          traceId: "ord123def005"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderRegistrationClosedError:
+      summary: 報名已截止
+      value:
+        success: false
+        error:
+          code: "REGISTRATION_CLOSED"
+          message: "賽事報名已截止"
+          details:
+            - field: "eventId"
+              reason: "registration deadline was 2026-01-20T23:59:59+08:00"
+          traceId: "ord123def006"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderDuplicateError:
+      summary: 重複報名
+      value:
+        success: false
+        error:
+          code: "DUPLICATE_REGISTRATION"
+          message: "此小孩已報名該賽事"
+          details:
+            - field: "child"
+              reason: "child has already registered for this event"
+          traceId: "ord123def007"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    # ===== Admin Examples =====
+
+    CreateEventRequestExample:
+      summary: 建立賽事請求範例
+      value:
+        name: "2026 春季兒童籃球營"
+        description: "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。活動結束後將舉辦小型友誼賽，讓孩子們在比賽中學習團隊合作。"
+        ageMin: 8
+        ageMax: 12
+        ageRestrictionNote: "適合 8 至 12 歲兒童參加"
+        strictAgeEnforcement: true
+        startTime: "2026-03-15T09:00:00+08:00"
+        endTime: "2026-03-15T12:00:00+08:00"
+        location: "台北市大安運動中心"
+        address: "台北市大安區辛亥路三段55號"
+        capacity: 30
+        registrationDeadline: "2026-03-10T23:59:59+08:00"
+        fee: 1500
+        organizer: "台北市籃球協會"
+        contactEmail: "events@basketball.org.tw"
+        contactPhone: "02-1234-5678"
+
+    AdminEventCreatedExample:
+      summary: 賽事建立成功
+      value:
+        success: true
+        data:
+          id: "550e8400-e29b-41d4-a716-446655440000"
+          name: "2026 春季兒童籃球營"
+          description: "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。活動結束後將舉辦小型友誼賽，讓孩子們在比賽中學習團隊合作。"
+          ageRestriction:
+            minAge: 8
+            maxAge: 12
+            description: "適合 8 至 12 歲兒童參加"
+            strictEnforcement: true
+          startTime: "2026-03-15T09:00:00+08:00"
+          endTime: "2026-03-15T12:00:00+08:00"
+          location: "台北市大安運動中心"
+          address: "台北市大安區辛亥路三段55號"
+          capacity: 30
+          registeredCount: 0
+          registrationStatus: "OPEN"
+          registrationDeadline: "2026-03-10T23:59:59+08:00"
+          fee: 1500
+          organizer: "台北市籃球協會"
+          contactEmail: "events@basketball.org.tw"
+          contactPhone: "02-1234-5678"
+          statistics:
+            totalRevenue: 0
+            pendingRevenue: 0
+            confirmedOrders: 0
+            pendingOrders: 0
+            cancelledOrders: 0
+            averageChildAge: 0
+          createdAt: "2026-01-26T10:30:00+08:00"
+          updatedAt: "2026-01-26T10:30:00+08:00"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    AdminEventPageResponseExample:
+      summary: 管理員賽事列表成功回應
+      value:
+        success: true
+        data:
+          - id: "550e8400-e29b-41d4-a716-446655440000"
+            name: "2026 春季兒童籃球營"
+            description: "專為 8-12 歲兒童設計的籃球訓練營"
+            ageRestriction:
+              minAge: 8
+              maxAge: 12
+              description: "適合 8 至 12 歲兒童參加"
+              strictEnforcement: true
+            startTime: "2026-03-15T09:00:00+08:00"
+            endTime: "2026-03-15T12:00:00+08:00"
+            location: "台北市大安運動中心"
+            address: "台北市大安區辛亥路三段55號"
+            capacity: 30
+            registeredCount: 18
+            registrationStatus: "OPEN"
+            registrationDeadline: "2026-03-10T23:59:59+08:00"
+            fee: 1500
+            organizer: "台北市籃球協會"
+            contactEmail: "events@basketball.org.tw"
+            contactPhone: "02-1234-5678"
+            statistics:
+              totalRevenue: 27000
+              pendingRevenue: 4500
+              confirmedOrders: 18
+              pendingOrders: 3
+              cancelledOrders: 2
+              averageChildAge: 9.8
+            createdAt: "2026-01-01T10:00:00+08:00"
+            updatedAt: "2026-01-25T15:30:00+08:00"
+          - id: "550e8400-e29b-41d4-a716-446655440001"
+            name: "兒童游泳體驗班"
+            description: "游泳基礎教學"
+            ageRestriction:
+              minAge: 6
+              maxAge: 10
+              description: "適合 6 至 10 歲兒童參加"
+              strictEnforcement: true
+            startTime: "2026-03-20T14:00:00+08:00"
+            endTime: "2026-03-20T16:00:00+08:00"
+            location: "台北市信義運動中心"
+            address: "台北市信義區松勤街100號"
+            capacity: 20
+            registeredCount: 15
+            registrationStatus: "OPEN"
+            registrationDeadline: "2026-03-15T23:59:59+08:00"
+            fee: 1800
+            organizer: "台北市游泳協會"
+            contactEmail: "swim@example.com"
+            contactPhone: "02-5555-1234"
+            statistics:
+              totalRevenue: 23400
+              pendingRevenue: 3600
+              confirmedOrders: 13
+              pendingOrders: 2
+              cancelledOrders: 1
+              averageChildAge: 7.5
+            createdAt: "2026-01-05T10:00:00+08:00"
+            updatedAt: "2026-01-25T08:00:00+08:00"
+        page:
+          page: 0
+          size: 20
+          totalElements: 2
+          totalPages: 1
+          hasNext: false
+          hasPrevious: false
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    AdminEventValidationError:
+      summary: 賽事參數驗證失敗
+      value:
+        success: false
+        error:
+          code: "VALIDATION_ERROR"
+          message: "請求參數驗證失敗"
+          details:
+            - field: "ageMin"
+              reason: "must be less than or equal to ageMax"
+            - field: "startTime"
+              reason: "must be before endTime"
+            - field: "registrationDeadline"
+              reason: "must be before startTime"
+          traceId: "adm123def001"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    UnauthorizedError:
+      summary: 未認證
+      value:
+        success: false
+        error:
+          code: "UNAUTHORIZED"
+          message: "未提供有效的認證憑證"
+          traceId: "auth123def001"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    ForbiddenError:
+      summary: 權限不足
+      value:
+        success: false
+        error:
+          code: "FORBIDDEN"
+          message: "您沒有權限執行此操作（需要管理員權限）"
+          traceId: "auth123def002"
+        timestamp: "2026-01-26T10:30:00+08:00"

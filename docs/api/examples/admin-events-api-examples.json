@@ -1,0 +1,508 @@
+{
+  "endpoints": {
+    "getEvents": "GET /api/admin/events",
+    "createEvent": "POST /api/admin/events"
+  },
+  "description": "管理員賽事管理 API 範例",
+  "authentication": {
+    "description": "管理員角色與權限說明",
+    "roleAssumption": {
+      "overview": "此為示範專案，權限機制採簡化設計。在實際 Production 環境中，需實作完整的認證與授權機制。",
+      "productionConsiderations": [
+        "使用 JWT (JSON Web Token) 或 Session-based 認證",
+        "在 JWT payload 中包含角色資訊 (role: ADMIN)",
+        "使用 Spring Security 實作角色驗證",
+        "所有 /api/admin/* 路徑需要 ADMIN 角色"
+      ],
+      "demoAssumption": "在此示範中，假設請求已通過認證機制驗證管理員身份。實際實作時需在 Controller 層加上 @PreAuthorize(\"hasRole('ADMIN')\")"
+    },
+    "errorCodes": {
+      "401": {
+        "code": "UNAUTHORIZED",
+        "description": "未提供認證憑證或憑證無效",
+        "example": "JWT token 遺失或過期"
+      },
+      "403": {
+        "code": "FORBIDDEN",
+        "description": "已認證但權限不足",
+        "example": "一般使用者嘗試存取管理員 API"
+      }
+    }
+  },
+  "getEvents": {
+    "description": "GET /api/admin/events - 管理員查詢賽事列表",
+    "features": [
+      "包含賽事統計資訊（營收、訂單數等）",
+      "支援依報名狀態篩選",
+      "支援日期區間篩選",
+      "預設依建立時間降冪排序（最新在前）"
+    ],
+    "examples": {
+      "requests": {
+        "basic": {
+          "description": "基本查詢（預設分頁）",
+          "url": "/api/admin/events",
+          "queryParams": {}
+        },
+        "filterByStatus": {
+          "description": "篩選報名開放中的賽事",
+          "url": "/api/admin/events?status=OPEN",
+          "queryParams": {
+            "status": "OPEN"
+          }
+        },
+        "filterByDateRange": {
+          "description": "篩選 3 月份的賽事",
+          "url": "/api/admin/events?dateFrom=2026-03-01&dateTo=2026-03-31",
+          "queryParams": {
+            "dateFrom": "2026-03-01",
+            "dateTo": "2026-03-31"
+          }
+        },
+        "withPaginationAndSort": {
+          "description": "分頁並依賽事時間排序",
+          "url": "/api/admin/events?page=0&size=20&sort=startTime,asc",
+          "queryParams": {
+            "page": 0,
+            "size": 20,
+            "sort": "startTime,asc"
+          }
+        }
+      },
+      "responses": {
+        "success": {
+          "httpStatus": 200,
+          "description": "成功取得賽事列表（含統計資訊）",
+          "body": {
+            "success": true,
+            "data": [
+              {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "2026 春季兒童籃球營",
+                "description": "專為 8-12 歲兒童設計的籃球訓練營",
+                "ageRestriction": {
+                  "minAge": 8,
+                  "maxAge": 12,
+                  "description": "適合 8 至 12 歲兒童參加",
+                  "strictEnforcement": true
+                },
+                "startTime": "2026-03-15T09:00:00+08:00",
+                "endTime": "2026-03-15T12:00:00+08:00",
+                "location": "台北市大安運動中心",
+                "address": "台北市大安區辛亥路三段55號",
+                "capacity": 30,
+                "registeredCount": 18,
+                "registrationStatus": "OPEN",
+                "registrationDeadline": "2026-03-10T23:59:59+08:00",
+                "fee": 1500,
+                "organizer": "台北市籃球協會",
+                "contactEmail": "events@basketball.org.tw",
+                "contactPhone": "02-1234-5678",
+                "statistics": {
+                  "totalRevenue": 27000,
+                  "pendingRevenue": 4500,
+                  "confirmedOrders": 18,
+                  "pendingOrders": 3,
+                  "cancelledOrders": 2,
+                  "averageChildAge": 9.8
+                },
+                "createdAt": "2026-01-01T10:00:00+08:00",
+                "updatedAt": "2026-01-25T15:30:00+08:00"
+              }
+            ],
+            "page": {
+              "page": 0,
+              "size": 20,
+              "totalElements": 1,
+              "totalPages": 1,
+              "hasNext": false,
+              "hasPrevious": false
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      },
+      "errors": {
+        "unauthorized": {
+          "httpStatus": 401,
+          "description": "未認證",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "UNAUTHORIZED",
+              "message": "未提供有效的認證憑證",
+              "traceId": "auth123def001"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "forbidden": {
+          "httpStatus": 403,
+          "description": "權限不足（非管理員）",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "您沒有權限執行此操作（需要管理員權限）",
+              "traceId": "auth123def002"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      }
+    }
+  },
+  "createEvent": {
+    "description": "POST /api/admin/events - 管理員建立新賽事",
+    "crudFields": {
+      "required": {
+        "name": {
+          "type": "string",
+          "constraints": "5-100 字元",
+          "description": "賽事名稱"
+        },
+        "description": {
+          "type": "string",
+          "constraints": "10-2000 字元",
+          "description": "賽事詳細說明"
+        },
+        "ageMin": {
+          "type": "integer",
+          "constraints": "1-18",
+          "description": "最小參賽年齡"
+        },
+        "ageMax": {
+          "type": "integer",
+          "constraints": "1-18，必須 >= ageMin",
+          "description": "最大參賽年齡"
+        },
+        "startTime": {
+          "type": "datetime",
+          "constraints": "必須 < endTime",
+          "description": "賽事開始時間"
+        },
+        "endTime": {
+          "type": "datetime",
+          "constraints": "必須 > startTime",
+          "description": "賽事結束時間"
+        },
+        "location": {
+          "type": "string",
+          "constraints": "3-100 字元",
+          "description": "賽事地點"
+        },
+        "capacity": {
+          "type": "integer",
+          "constraints": "1-1000",
+          "description": "最大參加人數"
+        },
+        "registrationDeadline": {
+          "type": "datetime",
+          "constraints": "必須 < startTime",
+          "description": "報名截止時間"
+        },
+        "fee": {
+          "type": "decimal",
+          "constraints": ">= 0",
+          "description": "報名費用（新台幣）"
+        },
+        "organizer": {
+          "type": "string",
+          "constraints": "2-100 字元",
+          "description": "主辦單位"
+        },
+        "contactEmail": {
+          "type": "string",
+          "constraints": "有效的 email 格式",
+          "description": "聯絡信箱"
+        },
+        "contactPhone": {
+          "type": "string",
+          "constraints": "市話格式 (如 02-1234-5678)",
+          "description": "聯絡電話"
+        }
+      },
+      "optional": {
+        "address": {
+          "type": "string",
+          "constraints": "最多 200 字元",
+          "description": "詳細地址"
+        },
+        "ageRestrictionNote": {
+          "type": "string",
+          "constraints": "最多 200 字元",
+          "description": "年齡限制說明（未提供則自動生成）"
+        },
+        "strictAgeEnforcement": {
+          "type": "boolean",
+          "constraints": "預設 true",
+          "description": "是否嚴格執行年齡限制"
+        }
+      }
+    },
+    "validationRules": {
+      "businessLogic": [
+        "ageMin 必須 <= ageMax",
+        "startTime 必須早於 endTime",
+        "registrationDeadline 必須早於 startTime",
+        "capacity 必須為正整數",
+        "fee 必須 >= 0"
+      ],
+      "autoGenerated": [
+        "id - 系統自動生成 UUID",
+        "registeredCount - 初始為 0",
+        "registrationStatus - 根據當前時間與 registrationDeadline 自動判斷",
+        "ageRestriction.description - 若未提供則根據 ageMin/ageMax 自動生成",
+        "createdAt, updatedAt - 系統時間戳"
+      ]
+    },
+    "examples": {
+      "requests": {
+        "basic": {
+          "description": "建立基本賽事（僅必填欄位）",
+          "body": {
+            "name": "2026 春季兒童籃球營",
+            "description": "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。",
+            "ageMin": 8,
+            "ageMax": 12,
+            "startTime": "2026-03-15T09:00:00+08:00",
+            "endTime": "2026-03-15T12:00:00+08:00",
+            "location": "台北市大安運動中心",
+            "capacity": 30,
+            "registrationDeadline": "2026-03-10T23:59:59+08:00",
+            "fee": 1500,
+            "organizer": "台北市籃球協會",
+            "contactEmail": "events@basketball.org.tw",
+            "contactPhone": "02-1234-5678"
+          }
+        },
+        "complete": {
+          "description": "建立完整賽事（包含選填欄位）",
+          "body": {
+            "name": "2026 春季兒童籃球營",
+            "description": "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。活動結束後將舉辦小型友誼賽，讓孩子們在比賽中學習團隊合作。",
+            "ageMin": 8,
+            "ageMax": 12,
+            "ageRestrictionNote": "適合 8 至 12 歲兒童參加，需具備基本體能",
+            "strictAgeEnforcement": true,
+            "startTime": "2026-03-15T09:00:00+08:00",
+            "endTime": "2026-03-15T12:00:00+08:00",
+            "location": "台北市大安運動中心",
+            "address": "台北市大安區辛亥路三段55號",
+            "capacity": 30,
+            "registrationDeadline": "2026-03-10T23:59:59+08:00",
+            "fee": 1500,
+            "organizer": "台北市籃球協會",
+            "contactEmail": "events@basketball.org.tw",
+            "contactPhone": "02-1234-5678"
+          }
+        },
+        "freeEvent": {
+          "description": "免費活動（fee = 0）",
+          "body": {
+            "name": "親子足球同樂會",
+            "description": "免費的親子足球活動，歡迎家長與小朋友一起參加，不需足球基礎。",
+            "ageMin": 4,
+            "ageMax": 10,
+            "strictAgeEnforcement": false,
+            "startTime": "2026-04-05T09:00:00+08:00",
+            "endTime": "2026-04-05T11:00:00+08:00",
+            "location": "台北市內湖運動公園",
+            "address": "台北市內湖區民權東路六段",
+            "capacity": 50,
+            "registrationDeadline": "2026-04-01T23:59:59+08:00",
+            "fee": 0,
+            "organizer": "內湖區公所",
+            "contactEmail": "neihu@example.com",
+            "contactPhone": "02-2792-5555"
+          }
+        }
+      },
+      "responses": {
+        "success": {
+          "httpStatus": 201,
+          "description": "賽事建立成功",
+          "body": {
+            "success": true,
+            "data": {
+              "id": "550e8400-e29b-41d4-a716-446655440000",
+              "name": "2026 春季兒童籃球營",
+              "description": "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。活動結束後將舉辦小型友誼賽，讓孩子們在比賽中學習團隊合作。",
+              "ageRestriction": {
+                "minAge": 8,
+                "maxAge": 12,
+                "description": "適合 8 至 12 歲兒童參加",
+                "strictEnforcement": true
+              },
+              "startTime": "2026-03-15T09:00:00+08:00",
+              "endTime": "2026-03-15T12:00:00+08:00",
+              "location": "台北市大安運動中心",
+              "address": "台北市大安區辛亥路三段55號",
+              "capacity": 30,
+              "registeredCount": 0,
+              "registrationStatus": "OPEN",
+              "registrationDeadline": "2026-03-10T23:59:59+08:00",
+              "fee": 1500,
+              "organizer": "台北市籃球協會",
+              "contactEmail": "events@basketball.org.tw",
+              "contactPhone": "02-1234-5678",
+              "statistics": {
+                "totalRevenue": 0,
+                "pendingRevenue": 0,
+                "confirmedOrders": 0,
+                "pendingOrders": 0,
+                "cancelledOrders": 0,
+                "averageChildAge": 0
+              },
+              "createdAt": "2026-01-26T10:30:00+08:00",
+              "updatedAt": "2026-01-26T10:30:00+08:00"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      },
+      "errors": {
+        "validation": {
+          "ageRangeInvalid": {
+            "httpStatus": 400,
+            "description": "年齡範圍邏輯錯誤",
+            "request": {
+              "name": "測試賽事",
+              "ageMin": 12,
+              "ageMax": 8
+            },
+            "body": {
+              "success": false,
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "請求參數驗證失敗",
+                "details": [
+                  {
+                    "field": "ageMin",
+                    "reason": "must be less than or equal to ageMax"
+                  }
+                ],
+                "traceId": "adm123def001"
+              },
+              "timestamp": "2026-01-26T10:30:00+08:00"
+            }
+          },
+          "timeRangeInvalid": {
+            "httpStatus": 400,
+            "description": "時間範圍邏輯錯誤",
+            "body": {
+              "success": false,
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "請求參數驗證失敗",
+                "details": [
+                  {
+                    "field": "startTime",
+                    "reason": "must be before endTime"
+                  },
+                  {
+                    "field": "registrationDeadline",
+                    "reason": "must be before startTime"
+                  }
+                ],
+                "traceId": "adm123def002"
+              },
+              "timestamp": "2026-01-26T10:30:00+08:00"
+            }
+          },
+          "missingRequiredFields": {
+            "httpStatus": 400,
+            "description": "缺少必填欄位",
+            "body": {
+              "success": false,
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "請求參數驗證失敗",
+                "details": [
+                  {
+                    "field": "name",
+                    "reason": "must not be blank"
+                  },
+                  {
+                    "field": "description",
+                    "reason": "must not be blank"
+                  },
+                  {
+                    "field": "startTime",
+                    "reason": "must not be null"
+                  }
+                ],
+                "traceId": "adm123def003"
+              },
+              "timestamp": "2026-01-26T10:30:00+08:00"
+            }
+          },
+          "invalidEmailFormat": {
+            "httpStatus": 400,
+            "description": "Email 格式錯誤",
+            "body": {
+              "success": false,
+              "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "電子郵件格式不正確",
+                "details": [
+                  {
+                    "field": "contactEmail",
+                    "reason": "must be a valid email address"
+                  }
+                ],
+                "traceId": "adm123def004"
+              },
+              "timestamp": "2026-01-26T10:30:00+08:00"
+            }
+          }
+        },
+        "unauthorized": {
+          "httpStatus": 401,
+          "description": "未認證",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "UNAUTHORIZED",
+              "message": "未提供有效的認證憑證",
+              "traceId": "auth123def001"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "forbidden": {
+          "httpStatus": 403,
+          "description": "權限不足（非管理員）",
+          "body": {
+            "success": false,
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "您沒有權限執行此操作（需要管理員權限）",
+              "traceId": "auth123def002"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        }
+      }
+    }
+  },
+  "implementationNotes": {
+    "security": [
+      "在 Spring Boot Controller 使用 @PreAuthorize(\"hasRole('ADMIN')\")",
+      "實作 JWT 或 Session-based 認證",
+      "在 JWT payload 或 Session 中儲存 role 資訊",
+      "使用 Spring Security 設定 /api/admin/** 路徑需要 ADMIN 角色"
+    ],
+    "validation": [
+      "使用 @Valid 和 Bean Validation (javax.validation)",
+      "自訂 Validator 檢查業務邏輯（如時間範圍、年齡範圍）",
+      "回傳清晰的錯誤訊息給前端"
+    ],
+    "statistics": [
+      "統計資訊應從 orders 表即時計算或使用快取",
+      "totalRevenue = SUM(fee) WHERE status = CONFIRMED",
+      "pendingRevenue = SUM(fee) WHERE status = PENDING",
+      "averageChildAge 可於查詢時計算或預先儲存"
+    ]
+  }
+}

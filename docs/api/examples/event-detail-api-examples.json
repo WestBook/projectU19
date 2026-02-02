@@ -1,0 +1,268 @@
+{
+  "endpoint": "GET /api/events/{id}",
+  "description": "賽事詳情查詢 API 範例",
+  "examples": {
+    "requests": {
+      "basic": {
+        "description": "查詢單一賽事詳情",
+        "url": "/api/events/550e8400-e29b-41d4-a716-446655440000",
+        "pathParams": {
+          "id": "550e8400-e29b-41d4-a716-446655440000"
+        }
+      }
+    },
+    "responses": {
+      "success": {
+        "httpStatus": 200,
+        "description": "成功取得賽事詳情（含完整年齡限制資訊）",
+        "body": {
+          "success": true,
+          "data": {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "name": "2026 春季兒童籃球營",
+            "description": "專為 8-12 歲兒童設計的籃球訓練營，由專業教練指導基礎籃球技巧，包含運球、傳球、投籃等基礎訓練。活動結束後將舉辦小型友誼賽。",
+            "ageRestriction": {
+              "minAge": 8,
+              "maxAge": 12,
+              "description": "適合 8 至 12 歲兒童參加",
+              "strictEnforcement": true
+            },
+            "startTime": "2026-03-15T09:00:00+08:00",
+            "endTime": "2026-03-15T12:00:00+08:00",
+            "location": "台北市大安運動中心",
+            "address": "台北市大安區辛亥路三段55號",
+            "capacity": 30,
+            "registeredCount": 18,
+            "registrationStatus": "OPEN",
+            "registrationDeadline": "2026-03-10T23:59:59+08:00",
+            "fee": 1500,
+            "organizer": "台北市籃球協會",
+            "contactEmail": "events@basketball.org.tw",
+            "contactPhone": "02-1234-5678",
+            "createdAt": "2026-01-01T10:00:00+08:00",
+            "updatedAt": "2026-01-20T15:30:00+08:00"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "successRegistrationClosed": {
+        "httpStatus": 200,
+        "description": "成功取得賽事詳情（報名已截止）",
+        "body": {
+          "success": true,
+          "data": {
+            "id": "550e8400-e29b-41d4-a716-446655440099",
+            "name": "冬季兒童滑冰體驗營",
+            "description": "專業教練指導的冰上運動體驗，適合初學者參加。",
+            "ageRestriction": {
+              "minAge": 6,
+              "maxAge": 14,
+              "description": "適合 6 至 14 歲兒童參加",
+              "strictEnforcement": true
+            },
+            "startTime": "2026-02-01T10:00:00+08:00",
+            "endTime": "2026-02-01T12:00:00+08:00",
+            "location": "台北小巨蛋冰上樂園",
+            "address": "台北市松山區南京東路四段2號",
+            "capacity": 20,
+            "registeredCount": 20,
+            "registrationStatus": "CLOSED",
+            "registrationDeadline": "2026-01-25T23:59:59+08:00",
+            "fee": 2000,
+            "organizer": "台北市冰上運動協會",
+            "contactEmail": "skating@example.com",
+            "contactPhone": "02-9876-5432",
+            "createdAt": "2025-12-01T10:00:00+08:00",
+            "updatedAt": "2026-01-25T10:00:00+08:00"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "successRegistrationFull": {
+        "httpStatus": 200,
+        "description": "成功取得賽事詳情（名額已滿）",
+        "body": {
+          "success": true,
+          "data": {
+            "id": "550e8400-e29b-41d4-a716-446655440088",
+            "name": "兒童游泳訓練班",
+            "description": "由國家級教練指導，適合有基礎泳技的兒童進階訓練。",
+            "ageRestriction": {
+              "minAge": 7,
+              "maxAge": 12,
+              "description": "適合 7 至 12 歲兒童參加（須具備基礎泳技）",
+              "strictEnforcement": true
+            },
+            "startTime": "2026-03-01T14:00:00+08:00",
+            "endTime": "2026-03-01T16:00:00+08:00",
+            "location": "台北市信義運動中心",
+            "address": "台北市信義區松勤街100號",
+            "capacity": 15,
+            "registeredCount": 15,
+            "registrationStatus": "FULL",
+            "registrationDeadline": "2026-02-25T23:59:59+08:00",
+            "fee": 1800,
+            "organizer": "台北市游泳協會",
+            "contactEmail": "swim@example.com",
+            "contactPhone": "02-5555-1234",
+            "createdAt": "2026-01-05T10:00:00+08:00",
+            "updatedAt": "2026-01-20T08:00:00+08:00"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "successFlexibleAge": {
+        "httpStatus": 200,
+        "description": "成功取得賽事詳情（年齡限制較寬鬆）",
+        "body": {
+          "success": true,
+          "data": {
+            "id": "550e8400-e29b-41d4-a716-446655440077",
+            "name": "親子足球同樂會",
+            "description": "家長與小朋友一起參與的趣味足球活動，不需足球基礎。",
+            "ageRestriction": {
+              "minAge": 4,
+              "maxAge": 10,
+              "description": "適合 4 至 10 歲兒童與家長共同參加",
+              "strictEnforcement": false
+            },
+            "startTime": "2026-04-05T09:00:00+08:00",
+            "endTime": "2026-04-05T11:00:00+08:00",
+            "location": "台北市內湖運動公園",
+            "address": "台北市內湖區民權東路六段",
+            "capacity": 50,
+            "registeredCount": 32,
+            "registrationStatus": "OPEN",
+            "registrationDeadline": "2026-04-01T23:59:59+08:00",
+            "fee": 500,
+            "organizer": "內湖區公所",
+            "contactEmail": "neihu@example.com",
+            "contactPhone": "02-2792-5555",
+            "createdAt": "2026-02-01T10:00:00+08:00",
+            "updatedAt": "2026-02-15T10:00:00+08:00"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      }
+    },
+    "errors": {
+      "invalidIdFormat": {
+        "httpStatus": 400,
+        "description": "ID 格式不正確（非 UUID 格式）",
+        "request": "/api/events/invalid-id",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INVALID_PARAMETER",
+            "message": "賽事 ID 格式不正確",
+            "details": [
+              {
+                "field": "id",
+                "reason": "must be a valid UUID format"
+              }
+            ],
+            "traceId": "abc123def470"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "notFound": {
+        "httpStatus": 404,
+        "description": "賽事不存在",
+        "request": "/api/events/550e8400-e29b-41d4-a716-999999999999",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "RESOURCE_NOT_FOUND",
+            "message": "找不到指定的賽事",
+            "details": [
+              {
+                "field": "id",
+                "reason": "event with the specified ID does not exist"
+              }
+            ],
+            "traceId": "abc123def471"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "internalServerError": {
+        "httpStatus": 500,
+        "description": "伺服器內部錯誤",
+        "request": "/api/events/550e8400-e29b-41d4-a716-446655440000",
+        "body": {
+          "success": false,
+          "error": {
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "系統發生非預期錯誤，請稍後再試",
+            "traceId": "xyz789abc125"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      }
+    }
+  },
+  "aiAgentUsage": {
+    "description": "AI Agent 呼叫此 API 的建議用法",
+    "toolDefinition": {
+      "name": "getEventDetail",
+      "description": "取得特定賽事的完整詳情，包含年齡限制、報名狀態、費用等資訊",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "description": "賽事 UUID"
+          }
+        },
+        "required": ["eventId"]
+      }
+    },
+    "exampleConversations": [
+      {
+        "userQuery": "這個籃球營的詳細資訊是什麼？",
+        "context": "使用者剛查詢過賽事列表，點選了某個賽事",
+        "toolCall": {
+          "name": "getEventDetail",
+          "arguments": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        }
+      },
+      {
+        "userQuery": "我 6 歲的小孩可以報名這個活動嗎？",
+        "context": "需要先取得賽事詳情，檢查年齡限制",
+        "toolCall": {
+          "name": "getEventDetail",
+          "arguments": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        },
+        "expectedResponse": "根據賽事年齡限制（8-12 歲），6 歲的小朋友目前不符合參賽資格。建議您可以查看其他適合 6 歲小朋友的活動。"
+      },
+      {
+        "userQuery": "這個活動還有名額嗎？費用多少？",
+        "toolCall": {
+          "name": "getEventDetail",
+          "arguments": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        }
+      }
+    ]
+  },
+  "ageRestrictionExplanation": {
+    "description": "年齡限制欄位說明",
+    "fields": {
+      "minAge": "最小參賽年齡（含）",
+      "maxAge": "最大參賽年齡（含）",
+      "description": "人類可讀的年齡限制說明，AI Agent 可直接用於回覆使用者",
+      "strictEnforcement": "是否嚴格執行年齡限制。true 表示必須嚴格符合；false 表示可彈性處理（如親子活動）"
+    },
+    "usageGuidelines": [
+      "AI Agent 應優先使用 ageRestriction.description 來回答使用者的年齡相關問題",
+      "當 strictEnforcement 為 false 時，可建議使用者聯繫主辦方確認",
+      "計算年齡時應以活動開始日期為基準"
+    ]
+  }
+}
