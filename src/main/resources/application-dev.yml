@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/sports_event_db
-    username: postgres
-    password: postgres
+    username: bloodsword1147
+    password:
 
   jpa:
     hibernate:

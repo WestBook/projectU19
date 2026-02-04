@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/sports_event_db
-    username: postgres
-    password: postgres
+    username: bloodsword1147
+    password:
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -17,6 +17,12 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
 
   jackson:
     serialization:

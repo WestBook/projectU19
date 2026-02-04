@@ -1,0 +1,5 @@
+-- =====================================================
+-- V2: Seed Events Data (H2 Compatible)
+-- =====================================================
+-- This is intentionally empty for H2 tests
+-- Test data will be inserted programmatically in test setup
