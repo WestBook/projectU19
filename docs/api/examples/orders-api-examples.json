@@ -39,7 +39,7 @@
         "type": "date",
         "required": true,
         "format": "YYYY-MM-DD",
-        "validation": "出生日期用於計算賽事當日年齡"
+        "validation": "出生日期用於計算賽事當日年齡，必須是過去日期（不可為今日或未來日期）"
       },
       "child.gender": {
         "type": "enum",
@@ -62,9 +62,14 @@
     "businessRules": {
       "ageValidation": {
         "description": "年齡驗證規則",
-        "rule": "以賽事開始日期計算小孩年齡，必須在 event.ageRestriction.minAge 到 event.ageRestriction.maxAge 之間",
-        "formula": "childAgeAtEvent = floor((event.startTime - child.birthDate) / 365.25)",
-        "strictEnforcement": "若 event.ageRestriction.strictEnforcement 為 true，則嚴格驗證；否則可彈性處理"
+        "rule": "以賽事開始日期計算小孩年齡，必須在 event.ageMin 到 event.ageMax 之間（含）",
+        "formula": "childAgeAtEvent = 完整年數(event.startTime.date - child.birthDate)",
+        "example": "birthDate=2016-05-15, event.startTime=2026-03-15 → childAgeAtEvent=9（三月尚未過5月生日）",
+        "strictEnforcement": {
+          "true": "年齡不符合時，拒絕報名（HTTP 409, code: AGE_NOT_ELIGIBLE）",
+          "false": "年齡不符合時，允許報名但在 response.data.warnings 中加入 AGE_BOUNDARY_WARNING 提示"
+        },
+        "birthDateConstraint": "child.birthDate 必須是過去日期（HTTP 400, code: VALIDATION_ERROR 若為未來日期）"
       },
       "capacityCheck": {
         "description": "名額檢查",
@@ -76,7 +81,13 @@
       },
       "duplicateCheck": {
         "description": "重複報名檢查",
-        "rule": "同一小孩（依 name + birthDate 判斷）不可重複報名同一賽事"
+        "rule": "同一小孩（依 child.name + child.birthDate 判斷）不可重複報名同一賽事",
+        "errorOnDuplicate": "HTTP 409, code: DUPLICATE_REGISTRATION"
+      },
+      "paymentDeadline": {
+        "description": "付款期限計算",
+        "formula": "paymentDeadline = min(event.registrationDeadline, 訂單建立時間 + 72小時)",
+        "example": "若 registrationDeadline=2026-03-10T23:59:59，訂單建立於 2026-01-26T10:30:00，則 paymentDeadline=2026-01-29T10:30:00"
       }
     }
   },
@@ -119,7 +130,13 @@
         "terminal": true
       }
     },
-    "diagram": "PENDING -> CONFIRMED -> COMPLETED\n   |           |\n   v           v\nCANCELLED   REFUNDED"
+    "diagram": "PENDING ─付款完成─→ CONFIRMED ─賽事結束─→ COMPLETED\n   │                      │\n   │（使用者取消/逾期）   │（退款申請通過/賽事取消）\n   ↓                      ↓\nCANCELLED              REFUNDED",
+    "transitionRules": {
+      "PENDING_to_CONFIRMED": "付款成功後由系統或 webhook 觸發",
+      "PENDING_to_CANCELLED": "使用者主動取消，或超過 paymentDeadline 系統自動取消",
+      "CONFIRMED_to_COMPLETED": "賽事 endTime 過後由系統批次更新",
+      "CONFIRMED_to_REFUNDED": "使用者申請退款且通過審核，或賽事主辦方取消賽事"
+    }
   },
   "examples": {
     "requests": {
@@ -186,7 +203,7 @@
     "responses": {
       "success": {
         "httpStatus": 201,
-        "description": "訂單建立成功",
+        "description": "訂單建立成功（嚴格年齡驗證，年齡完全符合）",
         "body": {
           "success": true,
           "data": {
@@ -215,6 +232,55 @@
             "paymentDeadline": "2026-02-01T23:59:59+08:00",
             "createdAt": "2026-01-26T10:30:00+08:00",
             "updatedAt": "2026-01-26T10:30:00+08:00"
+          },
+          "timestamp": "2026-01-26T10:30:00+08:00"
+        }
+      },
+      "successWithWarning": {
+        "httpStatus": 201,
+        "description": "訂單建立成功（彈性年齡驗證，年齡略超出範圍但允許報名）",
+        "context": "賽事年齡限制 8-12 歲，strictAgeEnforcement=false，小孩 13 歲",
+        "request": {
+          "eventId": "550e8400-e29b-41d4-a716-446655440002",
+          "parent": {
+            "name": "陳大文",
+            "email": "chen@example.com",
+            "phone": "0933112233"
+          },
+          "child": {
+            "name": "陳小強",
+            "birthDate": "2012-11-05",
+            "gender": "MALE"
+          }
+        },
+        "body": {
+          "success": true,
+          "data": {
+            "id": "660e8400-e29b-41d4-a716-446655440001",
+            "eventId": "550e8400-e29b-41d4-a716-446655440002",
+            "eventName": "2026 春季兒童籃球體驗營（彈性收費）",
+            "status": "PENDING",
+            "parent": {
+              "name": "陳大文",
+              "email": "chen@example.com",
+              "phone": "0933112233"
+            },
+            "child": {
+              "name": "陳小強",
+              "birthDate": "2012-11-05",
+              "gender": "MALE"
+            },
+            "childAgeAtEvent": 13,
+            "fee": 1500,
+            "paymentDeadline": "2026-01-29T10:30:00+08:00",
+            "createdAt": "2026-01-26T10:30:00+08:00",
+            "updatedAt": "2026-01-26T10:30:00+08:00",
+            "warnings": [
+              {
+                "code": "AGE_BOUNDARY_WARNING",
+                "message": "小孩年齡（13歲）超出賽事建議年齡範圍（8-12歲），已依主辦單位彈性規定允許報名，請確認參加意願"
+              }
+            ]
           },
           "timestamp": "2026-01-26T10:30:00+08:00"
         }
@@ -324,7 +390,7 @@
         },
         "invalidDateFormat": {
           "httpStatus": 400,
-          "description": "日期格式錯誤",
+          "description": "日期格式錯誤（使用斜線而非連字號）",
           "request": {
             "eventId": "550e8400-e29b-41d4-a716-446655440000",
             "parent": {
@@ -349,6 +415,38 @@
                 }
               ],
               "traceId": "ord123def008"
+            },
+            "timestamp": "2026-01-26T10:30:00+08:00"
+          }
+        },
+        "futureBirthDate": {
+          "httpStatus": 400,
+          "description": "出生日期為未來日期（不合理的出生日期）",
+          "context": "今日為 2026-03-02，提交的出生日期為 2028-06-01（未來）",
+          "request": {
+            "eventId": "550e8400-e29b-41d4-a716-446655440000",
+            "parent": {
+              "name": "王小明",
+              "email": "parent@example.com",
+              "phone": "0912345678"
+            },
+            "child": {
+              "name": "王小未來",
+              "birthDate": "2028-06-01"
+            }
+          },
+          "body": {
+            "success": false,
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "出生日期不可為未來日期",
+              "details": [
+                {
+                  "field": "child.birthDate",
+                  "reason": "birthDate must be in the past, got: 2028-06-01"
+                }
+              ],
+              "traceId": "ord123def011"
             },
             "timestamp": "2026-01-26T10:30:00+08:00"
           }

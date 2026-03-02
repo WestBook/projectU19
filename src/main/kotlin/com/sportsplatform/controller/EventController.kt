@@ -1,12 +1,14 @@
 package com.sportsplatform.controller
 
 import com.sportsplatform.dto.ErrorFieldDetail
+import com.sportsplatform.dto.EventDetailResponse
 import com.sportsplatform.dto.EventPageResponse
 import com.sportsplatform.exception.ValidationException
 import com.sportsplatform.service.EventService
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
+import java.util.*
 
 /**
  * Event Controller
@@ -17,6 +19,15 @@ import java.time.LocalDate
 class EventController(
     private val eventService: EventService
 ) {
+
+    /**
+     * GET /api/events/{id}
+     * 依 ID 取得賽事詳情
+     */
+    @GetMapping("/{id}")
+    fun getEventById(@PathVariable id: UUID): EventDetailResponse {
+        return eventService.getEventById(id)
+    }
 
     /**
      * GET /api/events

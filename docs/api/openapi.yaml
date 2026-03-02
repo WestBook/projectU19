@@ -188,12 +188,42 @@ paths:
         - Orders
       summary: 建立報名訂單
       description: |
-        為指定賽事建立報名訂單。系統會驗證：
-        1. 賽事是否存在且報名開放中
-        2. 小孩年齡是否符合賽事年齡限制
-        3. 賽事是否還有名額
+        為指定賽事建立報名訂單。
 
-        訂單建立後狀態為 PENDING，等待付款確認。
+        **驗證順序（依序執行，任一失敗即停止）：**
+        1. 請求欄位格式驗證（必填欄位、長度限制、格式規範）
+        2. `child.birthDate` 必須是過去的日期（不可為今日或未來日期）
+        3. 賽事必須存在（`eventId` 對應到有效賽事）
+        4. 賽事報名狀態必須為 OPEN，且當前時間在 `registrationDeadline` 之前
+        5. 賽事必須尚有名額（`registeredCount < capacity`）
+        6. 小孩於賽事當日的年齡須符合年齡限制（見下方計算公式）
+        7. 同一小孩不可重複報名同一賽事（依 `child.name + child.birthDate` 判斷）
+
+        **年齡計算公式：**
+        ```
+        childAgeAtEvent = 賽事開始日期(event.startTime) 與出生日期(child.birthDate) 之間的完整年數
+        ```
+        範例：birthDate = 2016-05-15，event.startTime = 2026-03-15
+        → childAgeAtEvent = 9（三月尚未滿 10 歲生日）
+
+        **嚴格 vs. 彈性年齡驗證（由 event.strictAgeEnforcement 控制）：**
+        - `strictAgeEnforcement = true`（預設）：年齡不在範圍內直接拒絕（HTTP 409, AGE_NOT_ELIGIBLE）
+        - `strictAgeEnforcement = false`：年齡不在範圍內仍允許報名，但回應中加入 `warnings` 陣列提示
+
+        **付款期限計算：**
+        ```
+        paymentDeadline = min(event.registrationDeadline, 訂單建立時間 + 72小時)
+        ```
+
+        **訂單狀態生命週期：**
+        ```
+        PENDING ─付款完成─→ CONFIRMED ─賽事結束─→ COMPLETED
+           │                     │
+           │（使用者取消/逾期）   │（退款申請通過/賽事取消）
+           ↓                     ↓
+        CANCELLED             REFUNDED
+        ```
+        訂單建立後初始狀態為 PENDING，等待付款確認。
       operationId: createOrder
       requestBody:
         required: true
@@ -214,6 +244,8 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/OrderCreatedExample"
+                nonStrictAge:
+                  $ref: "#/components/examples/OrderNonStrictAgeSuccess"
         "400":
           description: 請求參數驗證失敗
           content:
@@ -227,6 +259,8 @@ paths:
                   $ref: "#/components/examples/OrderInvalidEmailError"
                 invalidPhone:
                   $ref: "#/components/examples/OrderInvalidPhoneError"
+                invalidBirthDate:
+                  $ref: "#/components/examples/OrderInvalidBirthDateError"
         "404":
           description: 賽事不存在
           content:
@@ -745,7 +779,11 @@ components:
         birthDate:
           type: string
           format: date
-          description: 出生日期（用於計算年齡）
+          description: |
+            出生日期（用於計算賽事當日年齡）
+            - 格式：YYYY-MM-DD
+            - 必須是過去的日期（不可為今日或未來日期）
+            - 年齡計算：childAgeAtEvent = 完整年數(event.startTime - birthDate)
           example: "2016-05-15"
         gender:
           type: string
@@ -836,6 +874,25 @@ components:
           format: date-time
           description: 最後更新時間
           example: "2026-01-26T10:30:00+08:00"
+        warnings:
+          type: array
+          description: |
+            警告訊息（選填）。當賽事採彈性年齡驗證（strictAgeEnforcement=false）
+            且小孩年齡略超出建議範圍時，回應中會包含此欄位以提醒家長注意。
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: 警告代碼
+                example: "AGE_BOUNDARY_WARNING"
+              message:
+                type: string
+                description: 警告訊息（使用者可讀）
+                example: "小孩年齡略超出賽事建議年齡範圍，已依主辦單位彈性規定允許報名"
+            required:
+              - code
+              - message
       required:
         - id
         - eventId
@@ -1399,6 +1456,46 @@ components:
             - field: "child"
               reason: "child has already registered for this event"
           traceId: "ord123def007"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderInvalidBirthDateError:
+      summary: 出生日期為未來日期
+      value:
+        success: false
+        error:
+          code: "VALIDATION_ERROR"
+          message: "出生日期不可為未來日期"
+          details:
+            - field: "child.birthDate"
+              reason: "birthDate must be in the past, got: 2028-06-01"
+          traceId: "ord123def011"
+        timestamp: "2026-01-26T10:30:00+08:00"
+
+    OrderNonStrictAgeSuccess:
+      summary: 彈性年齡驗證模式下年齡略超出範圍但允許報名（含 warnings）
+      value:
+        success: true
+        data:
+          id: "660e8400-e29b-41d4-a716-446655440001"
+          eventId: "550e8400-e29b-41d4-a716-446655440002"
+          eventName: "2026 春季兒童籃球體驗營（彈性收費）"
+          status: "PENDING"
+          parent:
+            name: "陳大文"
+            email: "chen@example.com"
+            phone: "0933112233"
+          child:
+            name: "陳小強"
+            birthDate: "2012-11-05"
+            gender: "MALE"
+          childAgeAtEvent: 13
+          fee: 1500
+          paymentDeadline: "2026-02-01T23:59:59+08:00"
+          createdAt: "2026-01-26T10:30:00+08:00"
+          updatedAt: "2026-01-26T10:30:00+08:00"
+          warnings:
+            - code: "AGE_BOUNDARY_WARNING"
+              message: "小孩年齡（13歲）超出賽事建議年齡範圍（8-12歲），已依主辦單位彈性規定允許報名，請確認參加意願"
         timestamp: "2026-01-26T10:30:00+08:00"
 
     # ===== Admin Examples =====

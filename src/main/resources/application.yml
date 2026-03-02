@@ -35,7 +35,12 @@ server:
     include-message: always
     include-binding-errors: always
 
+admin:
+  api-key: "demo-admin-secret-2026"
+
 logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %5p [%X{traceId:-no-trace}] %logger{36} – %msg%n"
   level:
     root: INFO
     com.sportsplatform: DEBUG

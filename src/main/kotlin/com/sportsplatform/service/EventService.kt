@@ -1,17 +1,25 @@
 package com.sportsplatform.service
 
 import com.sportsplatform.domain.Event
+import com.sportsplatform.dto.AgeRestrictionDto
+import com.sportsplatform.dto.EventDetailDto
+import com.sportsplatform.dto.EventDetailResponse
 import com.sportsplatform.dto.EventDto
 import com.sportsplatform.dto.EventPageResponse
 import com.sportsplatform.dto.PageInfo
+import com.sportsplatform.dto.RegistrationStatus
+import com.sportsplatform.exception.ResourceNotFoundException
 import com.sportsplatform.repository.EventRepository
 import com.sportsplatform.repository.EventSpecifications
+import com.sportsplatform.repository.OrderRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
+import java.time.Instant
 import java.time.LocalDate
+import java.util.*
 
 /**
  * Event Service
@@ -19,7 +27,8 @@ import java.time.LocalDate
  */
 @Service
 class EventService(
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val orderRepository: OrderRepository
 ) {
 
     /**
@@ -98,6 +107,53 @@ class EventService(
     }
 
     /**
+     * 依 ID 取得賽事詳情
+     *
+     * @param id 賽事 UUID
+     * @return EventDetailResponse
+     * @throws ResourceNotFoundException 當賽事不存在時
+     */
+    fun getEventById(id: UUID): EventDetailResponse {
+        val event = eventRepository.findById(id).orElseThrow {
+            ResourceNotFoundException(
+                message = "賽事不存在：$id",
+                field = "id",
+                reason = "Event with id '$id' not found"
+            )
+        }
+
+        val registeredCount = orderRepository.countActiveOrdersByEventId(id)
+
+        val registrationStatus = calculateRegistrationStatus(
+            registeredCount = registeredCount,
+            capacity = event.capacity,
+            registrationDeadline = event.registrationDeadline
+        )
+
+        return EventDetailResponse(
+            data = event.toDetailDto(registeredCount, registrationStatus)
+        )
+    }
+
+    /**
+     * 計算報名狀態
+     * - FULL：registeredCount >= capacity
+     * - CLOSED：now > registrationDeadline
+     * - OPEN：其他情況
+     */
+    private fun calculateRegistrationStatus(
+        registeredCount: Int,
+        capacity: Int,
+        registrationDeadline: Instant
+    ): RegistrationStatus {
+        return when {
+            registeredCount >= capacity -> RegistrationStatus.FULL
+            Instant.now().isAfter(registrationDeadline) -> RegistrationStatus.CLOSED
+            else -> RegistrationStatus.OPEN
+        }
+    }
+
+    /**
      * Event Entity 轉換為 EventDto
      */
     private fun Event.toDto(): EventDto {
@@ -108,6 +164,37 @@ class EventService(
             ageMax = this.ageMax,
             startTime = this.startTime,
             location = this.location
+        )
+    }
+
+    /**
+     * Event Entity 轉換為 EventDetailDto
+     */
+    private fun Event.toDetailDto(registeredCount: Int, registrationStatus: RegistrationStatus): EventDetailDto {
+        return EventDetailDto(
+            id = this.id!!,
+            name = this.name,
+            description = this.description,
+            ageRestriction = AgeRestrictionDto(
+                minAge = this.ageMin,
+                maxAge = this.ageMax,
+                description = this.ageRestrictionNote,
+                strictEnforcement = this.strictAgeEnforcement
+            ),
+            startTime = this.startTime,
+            endTime = this.endTime,
+            location = this.location,
+            address = this.address,
+            capacity = this.capacity,
+            registeredCount = registeredCount,
+            registrationStatus = registrationStatus,
+            registrationDeadline = this.registrationDeadline,
+            fee = this.fee,
+            organizer = this.organizer,
+            contactEmail = this.contactEmail,
+            contactPhone = this.contactPhone,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt
         )
     }
 }

@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sports_event_db
+    environment:
+      POSTGRES_DB: sports_event_db
+      POSTGRES_USER: bloodsword1147
+      POSTGRES_PASSWORD: ""
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bloodsword1147 -d sports_event_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sports_event_app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/sports_event_db
+      SPRING_DATASOURCE_USERNAME: bloodsword1147
+      SPRING_DATASOURCE_PASSWORD: ""
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-demo-admin-secret-2026}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
