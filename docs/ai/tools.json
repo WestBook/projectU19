@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "description": "AI customer service tools for sports event platform",
+    "baseUrl": "http://localhost:8080",
+    "authRequired": false,
+    "guidelines": [
+      "Always call searchEvents before getEventDetail to find the event ID",
+      "When user mentions child age, always include age parameter in searchEvents",
+      "Call getEventDetail before confirming registration to verify capacity and deadline",
+      "If searchEvents returns empty, suggest broadening the search criteria"
+    ]
+  },
+  "tools": [
+    {
+      "name": "searchEvents",
+      "description": "Search for children's sports events based on filter criteria. Use this tool when a parent describes what they are looking for (child age, preferred location, date range) or when you need to present a list of available events. Returns a paginated list of event summaries, each including the event ID, name, age range, start time, location, and registration status.\n\nWhen to call: At the beginning of a discovery flow, or when the user asks 'what events are available', 'is there a basketball camp', or any open-ended search request. If the parent mentions the child's age, always include the age parameter so only age-appropriate events are returned.\n\nReturned data: Array of event summaries (id, name, ageMin, ageMax, startTime, location, registrationStatus) plus pagination metadata (page, size, totalElements, totalPages, hasNext, hasPrevious).\n\nConstraints and notes:\n- All parameters are optional; omitting all parameters returns the next upcoming events sorted by startTime ascending.\n- The age filter uses inclusive matching: only events where ageMin <= age <= ageMax are returned.\n- The location filter is a fuzzy (substring) match against the event location field.\n- size is capped at 20 per call; use page to implement 'show more' behavior.\n- This tool only returns summary fields. Call getEventDetail for full event information (capacity, fee, registration deadline, organizer contact).\n- If the result set is empty, broaden the criteria: relax the date range, remove the location filter, or confirm the child's age.\n\nExamples:\n1. Parent says 'find basketball events for my 9-year-old in Taipei in March 2026':\n   { \"age\": 9, \"location\": \"台北\", \"dateFrom\": \"2026-03-01\", \"dateTo\": \"2026-03-31\" }\n2. Parent says 'show me upcoming events for a 12-year-old':\n   { \"age\": 12 }",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "age": {
+            "type": "integer",
+            "description": "Child's age in whole years (1-18). Filters events where ageMin <= age <= ageMax. Use the child's age at the time of the conversation as an approximation; the backend will perform precise age-at-event validation during registration.",
+            "minimum": 1,
+            "maximum": 18
+          },
+          "dateFrom": {
+            "type": "string",
+            "description": "Earliest event start date to include (inclusive). Format: YYYY-MM-DD. Example: \"2026-03-01\".",
+            "format": "date"
+          },
+          "dateTo": {
+            "type": "string",
+            "description": "Latest event start date to include (inclusive). Format: YYYY-MM-DD. Must not be earlier than dateFrom. Example: \"2026-03-31\".",
+            "format": "date"
+          },
+          "location": {
+            "type": "string",
+            "description": "Location keyword for fuzzy search against the event location field. Can be a city name (e.g., \"台北\") or a venue name substring (e.g., \"大安\"). Maximum 100 characters.",
+            "maxLength": 100
+          },
+          "page": {
+            "type": "integer",
+            "description": "Zero-based page index for pagination. Use 0 for the first page. Increment by 1 to load additional pages when the response hasNext is true.",
+            "minimum": 0,
+            "default": 0
+          },
+          "size": {
+            "type": "integer",
+            "description": "Number of events to return per page. Between 1 and 20. Default is 10. Use a smaller value for conversational display (e.g., 5) and a larger value when building a full listing.",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 10
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "getEventDetail",
+      "description": "Retrieve the complete details of a single sports event by its unique ID. Use this tool after searchEvents has identified a candidate event ID, or when a user asks a specific question about a particular event (e.g., 'how many spots are left?', 'what is the registration fee?', 'when is the deadline?').\n\nWhen to call:\n- After the parent selects an event from the search results list and before presenting a registration summary.\n- When you need to confirm current capacity (registeredCount vs capacity) and registration status before guiding the parent to register.\n- When the parent asks a detailed question that cannot be answered from the summary data returned by searchEvents.\n\nReturned data: Full event object including:\n- Identity: id, name, description\n- Age restriction: ageRestriction.minAge, ageRestriction.maxAge, ageRestriction.description, ageRestriction.strictEnforcement\n- Schedule: startTime, endTime\n- Venue: location, address\n- Capacity: capacity, registeredCount, registrationStatus (OPEN/CLOSED/FULL)\n- Registration window: registrationDeadline\n- Pricing: fee (NTD)\n- Contact: organizer, contactEmail, contactPhone\n- Timestamps: createdAt, updatedAt\n\nConstraints and notes:\n- id must be a valid UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Obtain it from the id field in searchEvents results; never invent or guess an ID.\n- A 404 response means the event does not exist; inform the user and offer to search again.\n- Always relay the registrationDeadline and remaining capacity (capacity - registeredCount) to the parent before they decide to register.\n- If ageRestriction.strictEnforcement is false, warn the parent that the event may still accept registrations outside the stated age range, but a warning will appear on the order.\n\nExamples:\n1. After the parent picks an event from the list with id '550e8400-e29b-41d4-a716-446655440000':\n   { \"id\": \"550e8400-e29b-41d4-a716-446655440000\" }\n2. Parent asks 'tell me more about that basketball camp':\n   { \"id\": \"<id obtained from previous searchEvents call>\" }",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique event identifier in UUID format (e.g., \"550e8400-e29b-41d4-a716-446655440000\"). Always obtained from a prior searchEvents response; never fabricated.",
+            "format": "uuid"
+          }
+        },
+        "required": ["id"]
+      }
+    }
+  ]
+}
