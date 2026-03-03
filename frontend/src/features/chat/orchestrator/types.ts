@@ -3,6 +3,7 @@
  *
  * 對應 Anthropic Messages API 的 tool_use / tool_result 格式。
  * 工具定義來源：docs/ai/tools.json
+ * 結構化回應格式：docs/ai/response-schema.json
  */
 
 // ─── Anthropic API 基本型別 ──────────────────────────────────────────────────
@@ -113,6 +114,13 @@ export interface OrchestratorResult {
   turnsUsed: number
   /** 是否因達到上限而提前終止 */
   hitLimit: boolean
+  /**
+   * 結構化回應（由 Orchestrator 後處理填入）。
+   * sources / suggestions 由 Claude 在 answer 後以 JSON 區塊輸出，
+   * 或由 Orchestrator 根據工具呼叫結果自動生成。
+   * 對應 docs/ai/response-schema.json。
+   */
+  structured?: StructuredAiResponse
 }
 
 // ─── 平台 API 回傳型別（與 frontend/src/shared/types/api.ts 對齊） ───────────
@@ -169,4 +177,76 @@ export interface PlatformApiResponse<T> {
   success: boolean
   data: T
   timestamp: string
+}
+
+// ─── 結構化 AI 回應格式（對應 docs/ai/response-schema.json） ────────────────
+
+export type CitedField =
+  | 'fee'
+  | 'capacity'
+  | 'registeredCount'
+  | 'spotsLeft'
+  | 'registrationDeadline'
+  | 'ageRestriction'
+  | 'location'
+  | 'address'
+  | 'startTime'
+  | 'endTime'
+  | 'organizer'
+  | 'contactEmail'
+  | 'contactPhone'
+  | 'registrationStatus'
+  | 'description'
+
+export type SuggestionAction =
+  | 'SEARCH_EVENTS'
+  | 'VIEW_EVENT_DETAIL'
+  | 'START_REGISTRATION'
+  | 'LOAD_MORE_EVENTS'
+  | 'CONTACT_SUPPORT'
+  | 'CLEAR_CHAT'
+
+export interface AiResponseSource {
+  /** 賽事唯一識別碼（來自 searchEvents 或 getEventDetail 回傳） */
+  eventId: string
+  /** 賽事顯示名稱 */
+  eventName: string
+  /** answer 中實際引用到的欄位名稱 */
+  citedFields: CitedField[]
+  /** 前端賽事詳情頁相對路徑，格式：/events/{eventId} */
+  url: string
+}
+
+export interface AiResponseSuggestion {
+  /** 按鈕顯示文字，最多 30 字 */
+  label: string
+  /** 前端應執行的動作類型 */
+  action: SuggestionAction
+  /** 動作所需的參數 */
+  params?: {
+    eventId?: string
+    searchParams?: {
+      age?: number
+      location?: string
+      dateFrom?: string
+      dateTo?: string
+    }
+  }
+}
+
+/** 對應 docs/ai/response-schema.json 的結構化回應格式 */
+export interface StructuredAiResponse {
+  /** AI 回覆的主要文字（繁體中文，可含 Markdown） */
+  answer: string
+  /** answer 中引用到的賽事資料來源；無引用時為空陣列 */
+  sources: AiResponseSource[]
+  /** 建議使用者採取的下一步動作（最多 4 個） */
+  suggestions: AiResponseSuggestion[]
+  /** Orchestrator 追蹤資訊（供除錯，不顯示給使用者） */
+  meta?: {
+    traceId?: string
+    toolCallCount?: number
+    turnsUsed?: number
+    hitLimit?: boolean
+  }
 }

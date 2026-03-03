@@ -1,0 +1,264 @@
+{
+  "$schema": "./response-schema.json",
+  "description": "AI 客服 Agent 結構化回應範例集，涵蓋 7 種典型情境",
+  "examples": [
+    {
+      "_scenario": "情境 1：搜尋結果列表（多筆）",
+      "_trigger": "使用者：「有沒有適合 9 歲小孩的籃球活動？」",
+      "_toolCalls": ["searchEvents({ age: 9 })"],
+      "answer": "找到以下適合 **9 歲**小孩的籃球活動，共 3 筆：\n\n1. **兒童籃球夏令營**（ID: 550e8400-e29b-41d4-a716-446655440000）\n   📍 台北市大安區　📅 2026-03-15　💰 NT$2,000　剩餘 **5 個名額**\n\n2. **春季籃球基礎訓練**（ID: 6ba7b810-9dad-11d1-80b4-00c04fd430c8）\n   📍 新北市板橋區　📅 2026-03-22　💰 NT$1,500　剩餘 **12 個名額**\n\n3. **親子籃球體驗日**（ID: 6ba7b812-9dad-11d1-80b4-00c04fd430c8）\n   📍 桃園市中壢區　📅 2026-04-05　💰 NT$800　剩餘 **20 個名額**\n\n請問您想進一步了解哪一個活動？",
+      "sources": [
+        {
+          "eventId": "550e8400-e29b-41d4-a716-446655440000",
+          "eventName": "兒童籃球夏令營",
+          "citedFields": ["location", "startTime", "fee", "spotsLeft"],
+          "url": "/events/550e8400-e29b-41d4-a716-446655440000"
+        },
+        {
+          "eventId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+          "eventName": "春季籃球基礎訓練",
+          "citedFields": ["location", "startTime", "fee", "spotsLeft"],
+          "url": "/events/6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        },
+        {
+          "eventId": "6ba7b812-9dad-11d1-80b4-00c04fd430c8",
+          "eventName": "親子籃球體驗日",
+          "citedFields": ["location", "startTime", "fee", "spotsLeft"],
+          "url": "/events/6ba7b812-9dad-11d1-80b4-00c04fd430c8"
+        }
+      ],
+      "suggestions": [
+        {
+          "label": "查看夏令營詳情",
+          "action": "VIEW_EVENT_DETAIL",
+          "params": { "eventId": "550e8400-e29b-41d4-a716-446655440000" }
+        },
+        {
+          "label": "查看基礎訓練詳情",
+          "action": "VIEW_EVENT_DETAIL",
+          "params": { "eventId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8" }
+        },
+        {
+          "label": "載入更多活動",
+          "action": "LOAD_MORE_EVENTS",
+          "params": { "searchParams": { "age": 9 } }
+        }
+      ],
+      "meta": {
+        "traceId": "a1b2c3d4e5f6",
+        "toolCallCount": 1,
+        "turnsUsed": 1,
+        "hitLimit": false
+      }
+    },
+    {
+      "_scenario": "情境 2：單一賽事完整詳情",
+      "_trigger": "使用者：「請問兒童籃球夏令營的費用和名額是多少？」",
+      "_toolCalls": [
+        "searchEvents({ age: 9 })",
+        "getEventDetail({ id: '550e8400-e29b-41d4-a716-446655440000' })"
+      ],
+      "answer": "以下是 **兒童籃球夏令營**（ID: 550e8400-e29b-41d4-a716-446655440000）的詳細資訊：\n\n- 📅 **時間：** 2026-03-15 08:00 ～ 2026-03-15 17:00\n- 📍 **地點：** 台北市大安區大安運動中心，3 樓籃球場\n- 👶 **年齡限制：** 8～12 歲（嚴格驗證）\n- 💰 **費用：** NT$2,000\n- 🪑 **名額：** 30 人，已報名 25 人，**剩餘 5 個名額**\n- ⏰ **報名截止：** 2026-03-10 23:59（距今約 7 天）\n- 📞 **聯絡：** 台北市體育協會，contact@taipei-sports.org\n\n名額有限，建議盡早報名！",
+      "sources": [
+        {
+          "eventId": "550e8400-e29b-41d4-a716-446655440000",
+          "eventName": "兒童籃球夏令營",
+          "citedFields": [
+            "startTime",
+            "endTime",
+            "location",
+            "address",
+            "ageRestriction",
+            "fee",
+            "capacity",
+            "registeredCount",
+            "spotsLeft",
+            "registrationDeadline",
+            "contactEmail",
+            "organizer"
+          ],
+          "url": "/events/550e8400-e29b-41d4-a716-446655440000"
+        }
+      ],
+      "suggestions": [
+        {
+          "label": "立即報名",
+          "action": "START_REGISTRATION",
+          "params": { "eventId": "550e8400-e29b-41d4-a716-446655440000" }
+        },
+        {
+          "label": "查看賽事頁面",
+          "action": "VIEW_EVENT_DETAIL",
+          "params": { "eventId": "550e8400-e29b-41d4-a716-446655440000" }
+        },
+        {
+          "label": "搜尋其他活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": { "age": 9 } }
+        }
+      ],
+      "meta": {
+        "traceId": "b2c3d4e5f6a1",
+        "toolCallCount": 2,
+        "turnsUsed": 2,
+        "hitLimit": false
+      }
+    },
+    {
+      "_scenario": "情境 3：年齡不符合（嚴格模式）",
+      "_trigger": "使用者詢問某活動，但孩子年齡為 6 歲，活動要求 8-12 歲",
+      "_toolCalls": [
+        "getEventDetail({ id: '550e8400-e29b-41d4-a716-446655440000' })"
+      ],
+      "_apiError": "AGE_NOT_ELIGIBLE",
+      "answer": "很抱歉，**兒童籃球夏令營**（ID: 550e8400-e29b-41d4-a716-446655440000）要求參加者年齡需在 **8～12 歲**之間，您的小孩目前 **6 歲**，暫時不符合報名資格。\n\n我可以幫您搜尋適合 6 歲小孩的活動，您有興趣嗎？",
+      "sources": [
+        {
+          "eventId": "550e8400-e29b-41d4-a716-446655440000",
+          "eventName": "兒童籃球夏令營",
+          "citedFields": ["ageRestriction"],
+          "url": "/events/550e8400-e29b-41d4-a716-446655440000"
+        }
+      ],
+      "suggestions": [
+        {
+          "label": "搜尋適合 6 歲的活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": { "age": 6 } }
+        },
+        {
+          "label": "搜尋 6 歲台北活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": { "age": 6, "location": "台北" } }
+        }
+      ],
+      "meta": {
+        "traceId": "c3d4e5f6a1b2",
+        "toolCallCount": 1,
+        "turnsUsed": 1,
+        "hitLimit": false
+      }
+    },
+    {
+      "_scenario": "情境 4：名額已滿或報名截止",
+      "_trigger": "使用者想報名，但活動已額滿",
+      "_toolCalls": [
+        "getEventDetail({ id: '6ba7b810-9dad-11d1-80b4-00c04fd430c8' })"
+      ],
+      "_apiError": "EVENT_FULL",
+      "answer": "很抱歉，**春季籃球基礎訓練**（ID: 6ba7b810-9dad-11d1-80b4-00c04fd430c8）的 30 個名額已全數額滿，目前無法接受新的報名。\n\n我可以為您：\n1. 搜尋其他時段或地點的籃球活動\n2. 搜尋同年齡層的其他運動項目\n\n請問您想怎麼做？",
+      "sources": [
+        {
+          "eventId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+          "eventName": "春季籃球基礎訓練",
+          "citedFields": ["capacity", "registrationStatus"],
+          "url": "/events/6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        }
+      ],
+      "suggestions": [
+        {
+          "label": "搜尋其他籃球活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": { "age": 9 } }
+        },
+        {
+          "label": "搜尋新北市活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": { "age": 9, "location": "新北" } }
+        },
+        {
+          "label": "聯繫客服",
+          "action": "CONTACT_SUPPORT"
+        }
+      ],
+      "meta": {
+        "traceId": "d4e5f6a1b2c3",
+        "toolCallCount": 1,
+        "turnsUsed": 1,
+        "hitLimit": false
+      }
+    },
+    {
+      "_scenario": "情境 5：彈性年齡模式警告（strictEnforcement = false）",
+      "_trigger": "使用者為 13 歲小孩報名建議範圍 8-12 歲的活動（非嚴格模式，可報名但有警告）",
+      "_toolCalls": [
+        "getEventDetail({ id: '6ba7b812-9dad-11d1-80b4-00c04fd430c8' })"
+      ],
+      "answer": "**親子籃球體驗日**（ID: 6ba7b812-9dad-11d1-80b4-00c04fd430c8）的建議參與年齡為 **8～12 歲**，您的小孩 **13 歲**稍微超出建議範圍。\n\n不過，此活動採用**彈性年齡規定**，主辦單位允許年齡稍微超出範圍的小朋友參加。報名成功後，訂單會顯示年齡提示，請向主辦單位再次確認是否適合。\n\n💰 費用：NT$800　🪑 剩餘名額：20 個　⏰ 截止：2026-04-01\n\n是否要前往報名？",
+      "sources": [
+        {
+          "eventId": "6ba7b812-9dad-11d1-80b4-00c04fd430c8",
+          "eventName": "親子籃球體驗日",
+          "citedFields": [
+            "ageRestriction",
+            "fee",
+            "spotsLeft",
+            "registrationDeadline"
+          ],
+          "url": "/events/6ba7b812-9dad-11d1-80b4-00c04fd430c8"
+        }
+      ],
+      "suggestions": [
+        {
+          "label": "前往報名（彈性模式）",
+          "action": "START_REGISTRATION",
+          "params": { "eventId": "6ba7b812-9dad-11d1-80b4-00c04fd430c8" }
+        },
+        {
+          "label": "搜尋更適合的活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": { "age": 13 } }
+        }
+      ],
+      "meta": {
+        "traceId": "e5f6a1b2c3d4",
+        "toolCallCount": 1,
+        "turnsUsed": 1,
+        "hitLimit": false
+      }
+    },
+    {
+      "_scenario": "情境 6：需要澄清（缺少年齡資訊）",
+      "_trigger": "使用者：「幫我找活動」（未提供年齡）",
+      "_toolCalls": [],
+      "answer": "我很樂意幫您搜尋活動！為了找到最適合的選項，請問您的小孩目前**幾歲**呢？\n\n另外，如果有特定地點或時間的偏好，也請一併告訴我，這樣可以幫您篩選出更精準的結果。",
+      "sources": [],
+      "suggestions": [
+        {
+          "label": "搜尋全台灣活動",
+          "action": "SEARCH_EVENTS",
+          "params": { "searchParams": {} }
+        }
+      ],
+      "meta": {
+        "traceId": "f6a1b2c3d4e5",
+        "toolCallCount": 0,
+        "turnsUsed": 0,
+        "hitLimit": false
+      }
+    },
+    {
+      "_scenario": "情境 7：超出服務範圍",
+      "_trigger": "使用者：「台灣明天天氣怎樣？」",
+      "_toolCalls": [],
+      "answer": "這個問題超出了我能協助的範圍。我專門負責本平台的**兒童體育賽事**查詢與報名服務。\n\n如果您有關於賽事查詢、報名流程、費用或年齡限制等問題，我很樂意幫忙！",
+      "sources": [],
+      "suggestions": [
+        {
+          "label": "搜尋近期活動",
+          "action": "SEARCH_EVENTS"
+        },
+        {
+          "label": "聯繫人工客服",
+          "action": "CONTACT_SUPPORT"
+        }
+      ],
+      "meta": {
+        "traceId": "a2b3c4d5e6f7",
+        "toolCallCount": 0,
+        "turnsUsed": 0,
+        "hitLimit": false
+      }
+    }
+  ]
+}

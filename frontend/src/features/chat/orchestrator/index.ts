@@ -61,6 +61,11 @@ export type {
   ToolName,
   SearchEventsInput,
   GetEventDetailInput,
+  StructuredAiResponse,
+  AiResponseSource,
+  AiResponseSuggestion,
+  SuggestionAction,
+  CitedField,
 } from './types'
 
 // ─── Session State 工廠 ──────────────────────────────────────────────────────

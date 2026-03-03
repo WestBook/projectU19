@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sports-platform/ai/response",
+  "title": "AiAgentResponse",
+  "description": "AI 客服 Agent 的結構化回應格式。Orchestrator 在 Claude 產出最終文字後，將其解析並填入此結構，再回傳給前端 ChatWidget。",
+  "type": "object",
+  "required": ["answer", "sources", "suggestions"],
+  "additionalProperties": false,
+  "properties": {
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "AI 回覆的主要文字。繁體中文，可包含 Markdown（**粗體**、清單）。禁止包含 HTML 標籤。",
+      "examples": [
+        "找到以下適合 9 歲小孩的籃球活動：\n\n1. **兒童籃球夏令營**（ID: 550e8400-e29b-41d4-a716-446655440000）\n   台北市，2026-03-15，費用 NT$2,000，剩餘 5 個名額\n\n請問您要進一步了解哪一個活動？"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "description": "answer 中引用到的賽事資料來源。每筆對應一個曾由工具查詢過的賽事。若無引用任何賽事（例如純文字問答、需澄清的情況），則為空陣列。",
+      "items": { "$ref": "#/$defs/Source" },
+      "uniqueItems": true
+    },
+    "suggestions": {
+      "type": "array",
+      "description": "使用者接下來可採取的建議動作，以快速回覆按鈕形式呈現。最多 4 個，避免讓使用者選擇困難。",
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/Suggestion" }
+    },
+    "meta": {
+      "$ref": "#/$defs/ResponseMeta",
+      "description": "Orchestrator 產生的追蹤資訊，供除錯與監控使用，不顯示給使用者。"
+    }
+  },
+  "$defs": {
+    "Source": {
+      "title": "EventSource",
+      "description": "answer 中引用的單一賽事資料來源，確保資訊可追溯至 API 回傳值。",
+      "type": "object",
+      "required": ["eventId", "eventName", "citedFields", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "賽事唯一識別碼（來自 searchEvents 或 getEventDetail 回傳）。"
+        },
+        "eventName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "賽事顯示名稱，與 API 回傳的 name 欄位一致。"
+        },
+        "citedFields": {
+          "type": "array",
+          "description": "answer 中實際引用到的欄位名稱（用於驗證資料來源，非裝飾用）。",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fee",
+              "capacity",
+              "registeredCount",
+              "spotsLeft",
+              "registrationDeadline",
+              "ageRestriction",
+              "location",
+              "address",
+              "startTime",
+              "endTime",
+              "organizer",
+              "contactEmail",
+              "contactPhone",
+              "registrationStatus",
+              "description"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "url": {
+          "type": "string",
+          "description": "前端賽事詳情頁的相對路徑，供使用者點擊直接導覽。格式：/events/{eventId}",
+          "pattern": "^/events/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "Suggestion": {
+      "title": "ActionSuggestion",
+      "description": "建議使用者採取的下一步動作。label 顯示為按鈕文字，action 定義前端行為，params 提供動作參數。",
+      "type": "object",
+      "required": ["label", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "按鈕顯示文字，繁體中文，簡短明確。例：「查看詳情」、「重新搜尋」。"
+        },
+        "action": {
+          "type": "string",
+          "description": "前端應執行的動作類型。",
+          "enum": [
+            "SEARCH_EVENTS",
+            "VIEW_EVENT_DETAIL",
+            "START_REGISTRATION",
+            "LOAD_MORE_EVENTS",
+            "CONTACT_SUPPORT",
+            "CLEAR_CHAT"
+          ]
+        },
+        "params": {
+          "$ref": "#/$defs/SuggestionParams",
+          "description": "動作所需的參數。不同 action 使用不同欄位：VIEW_EVENT_DETAIL 和 START_REGISTRATION 需要 eventId，SEARCH_EVENTS 可攜帶 searchParams。"
+        }
+      }
+    },
+    "SuggestionParams": {
+      "title": "SuggestionParams",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "目標賽事 ID，用於 VIEW_EVENT_DETAIL 和 START_REGISTRATION。"
+        },
+        "searchParams": {
+          "$ref": "#/$defs/SearchParams",
+          "description": "搜尋條件，用於 SEARCH_EVENTS。"
+        }
+      }
+    },
+    "SearchParams": {
+      "title": "SearchParams",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "age": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "dateFrom": {
+          "type": "string",
+          "format": "date"
+        },
+        "dateTo": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "ResponseMeta": {
+      "title": "ResponseMeta",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "description": "X-Trace-Id，與後端 log 對應。"
+        },
+        "toolCallCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "本次回應使用的工具呼叫次數（searchEvents + getEventDetail 合計）。"
+        },
+        "turnsUsed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Orchestrator loop 執行的輪次數。"
+        },
+        "hitLimit": {
+          "type": "boolean",
+          "description": "true 表示因達到 maxTurns 或 max_tokens 而提前截止。"
+        }
+      }
+    }
+  }
+}
