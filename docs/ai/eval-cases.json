@@ -1,0 +1,535 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "AI 客服 Agent 評估案例集 v1.0 — 15 個案例，涵蓋 Normal / Edge / Missing Info 三類",
+  "version": "1.0",
+  "evaluationGuide": {
+    "toolCallCheck": "驗證 expectedToolCalls：工具名稱與 inputContains 的每個欄位值必須完全符合；若 shouldNotCall=true 則不得呼叫任何工具",
+    "answerCheck": "驗證 passCriteria：type=answer_contains 的 value 必須出現在 answer 中；type=answer_not_contains 的 value 不得出現",
+    "sourcesCheck": "驗證 passCriteria：type=sources_min_count 時 sources 長度 >= value；type=sources_empty 時 sources 必須是空陣列",
+    "suggestionsCheck": "驗證 passCriteria：type=suggestions_include_action 時 suggestions 中至少一個 action 等於 value",
+    "clarificationCheck": "type=asks_clarification 時 answer 必須包含問號（?）且不得先呼叫任何工具",
+    "hallucination": "type=no_fabricated_ids 時：answer 中出現的所有 UUID 格式字串，必須全部出現在 mockApiResponses 回傳的 id 欄位中",
+    "noTechJargon": "type=no_tech_jargon 時：answer 不得包含 'HTTP'、'API'、'409'、'404'、'500' 等技術詞彙"
+  },
+  "cases": [
+    {
+      "id": "N01",
+      "category": "normal",
+      "description": "基本依年齡搜尋：使用者明確說出孩子年齡，Agent 應直接呼叫 searchEvents 並回傳帶有 eventId 的清單",
+      "conversationHistory": [],
+      "userInput": "我想找適合 9 歲小孩的籃球活動",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 3,
+          "events": [
+            { "id": "aaaaaaaa-0001-0001-0001-000000000001", "name": "兒童籃球夏令營", "ageRange": "8-12 歲", "startTime": "2026-03-15T08:00:00+08:00", "location": "台北市大安區", "registrationStatus": "OPEN" },
+            { "id": "aaaaaaaa-0001-0001-0001-000000000002", "name": "春季籃球基礎訓練", "ageRange": "7-11 歲", "startTime": "2026-03-22T09:00:00+08:00", "location": "新北市板橋區", "registrationStatus": "OPEN" },
+            { "id": "aaaaaaaa-0001-0001-0001-000000000003", "name": "親子籃球體驗日", "ageRange": "6-12 歲", "startTime": "2026-04-05T10:00:00+08:00", "location": "桃園市中壢區", "registrationStatus": "OPEN" }
+          ],
+          "page": { "page": 0, "size": 10, "totalElements": 3, "totalPages": 1, "hasNext": false, "hasPrevious": false }
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "searchEvents", "inputContains": { "age": 9 } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "searchEvents" },
+        { "type": "answer_contains", "value": "aaaaaaaa-0001-0001-0001-000000000001", "description": "必須引用第一個賽事的 eventId" },
+        { "type": "answer_contains", "value": "aaaaaaaa-0001-0001-0001-000000000002", "description": "必須引用第二個賽事的 eventId" },
+        { "type": "sources_min_count", "value": 3, "description": "sources 應包含所有回傳賽事" },
+        { "type": "suggestions_include_action", "value": "VIEW_EVENT_DETAIL", "description": "應提供至少一個查看詳情的建議" },
+        { "type": "no_fabricated_ids" },
+        { "type": "no_tech_jargon" }
+      ],
+      "failExamples": [
+        "春季籃球基礎訓練是個很好的活動，我相信您會喜歡（未呼叫工具，捏造評論）",
+        "目前有籃球夏令營，費用大約 2000 元（未呼叫工具即給出費用資訊）"
+      ]
+    },
+    {
+      "id": "N02",
+      "category": "normal",
+      "description": "加入地點與日期篩選：搜尋條件應完整傳遞給工具",
+      "conversationHistory": [],
+      "userInput": "台北有沒有適合 10 歲的游泳活動，3 月份的",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 1,
+          "events": [
+            { "id": "bbbbbbbb-0002-0002-0002-000000000001", "name": "兒童游泳精進班", "ageRange": "8-12 歲", "startTime": "2026-03-10T09:00:00+08:00", "location": "台北市中山區", "registrationStatus": "OPEN" }
+          ],
+          "page": { "page": 0, "size": 10, "totalElements": 1, "totalPages": 1, "hasNext": false, "hasPrevious": false }
+        }
+      },
+      "expectedToolCalls": [
+        {
+          "name": "searchEvents",
+          "inputContains": {
+            "age": 10,
+            "location": "台北",
+            "dateFrom": "2026-03-01",
+            "dateTo": "2026-03-31"
+          }
+        }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "searchEvents" },
+        { "type": "answer_contains", "value": "bbbbbbbb-0002-0002-0002-000000000001" },
+        { "type": "sources_min_count", "value": 1 },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "searchEvents 呼叫中缺少 location 參數",
+        "searchEvents 呼叫中年齡用了 9 或 11 而非 10"
+      ]
+    },
+    {
+      "id": "N03",
+      "category": "normal",
+      "description": "多輪對話：搜尋後使用者詢問特定賽事詳情，Agent 應正確呼叫 getEventDetail 並使用 searchEvents 回傳的 ID",
+      "conversationHistory": [
+        {
+          "role": "user",
+          "content": "找 9 歲的籃球活動"
+        },
+        {
+          "role": "assistant",
+          "content": "找到兒童籃球夏令營（ID: aaaaaaaa-0001-0001-0001-000000000001）等 2 個活動，請問您想了解哪一個？",
+          "seenEventIds": ["aaaaaaaa-0001-0001-0001-000000000001", "cccccccc-0003-0003-0003-000000000001"]
+        }
+      ],
+      "userInput": "第一個的費用是多少？報名截止是哪天？",
+      "mockApiResponses": {
+        "getEventDetail": {
+          "id": "aaaaaaaa-0001-0001-0001-000000000001",
+          "name": "兒童籃球夏令營",
+          "fee": 2000,
+          "registrationDeadline": "2026-03-10T23:59:00+08:00",
+          "capacity": 30,
+          "registeredCount": 25,
+          "registrationStatus": "OPEN",
+          "ageRestriction": { "minAge": 8, "maxAge": 12, "description": "8-12 歲", "strictEnforcement": true },
+          "startTime": "2026-03-15T08:00:00+08:00",
+          "location": "台北市大安區"
+        }
+      },
+      "expectedToolCalls": [
+        {
+          "name": "getEventDetail",
+          "inputContains": { "id": "aaaaaaaa-0001-0001-0001-000000000001" }
+        }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "getEventDetail" },
+        { "type": "answer_contains", "value": "2,000", "description": "費用必須出現在回答中" },
+        { "type": "answer_contains", "value": "2026-03-10", "description": "截止日期必須出現在回答中" },
+        { "type": "answer_contains", "value": "aaaaaaaa-0001-0001-0001-000000000001", "description": "回覆中必須引用 eventId" },
+        { "type": "sources_min_count", "value": 1 },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "費用大約是 1500-2500 元左右（捏造費用範圍而非引用 API 回傳值）",
+        "呼叫 getEventDetail 時使用了不在 seenEventIds 中的 ID"
+      ]
+    },
+    {
+      "id": "N04",
+      "category": "normal",
+      "description": "搜尋結果為空：Agent 應如實告知且提出放寬建議，不得捏造任何賽事",
+      "conversationHistory": [],
+      "userInput": "高雄有沒有 16 歲的羽球活動？",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 0,
+          "events": [],
+          "message": "沒有符合條件的賽事。建議放寬年齡、地點或日期範圍。",
+          "page": { "page": 0, "size": 10, "totalElements": 0, "totalPages": 0, "hasNext": false, "hasPrevious": false }
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "searchEvents", "inputContains": { "age": 16, "location": "高雄" } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "searchEvents" },
+        { "type": "answer_contains", "value": "沒有", "description": "必須告知查無結果" },
+        { "type": "sources_empty", "description": "查無結果時 sources 必須為空陣列" },
+        { "type": "suggestions_include_action", "value": "SEARCH_EVENTS", "description": "應建議使用者重新搜尋" },
+        { "type": "no_fabricated_ids" },
+        { "type": "answer_not_contains", "value": "我推薦", "description": "不可在無資料情況下推薦任何活動" }
+      ],
+      "failExamples": [
+        "高雄目前有幾個羽球活動，建議您可以試試中山體育館（捏造不存在的活動）",
+        "sources 中出現任何 eventId（查無結果不應有任何來源）"
+      ]
+    },
+    {
+      "id": "N05",
+      "category": "normal",
+      "description": "引導報名：看完詳情後使用者決定報名，Agent 應引導至報名頁面並提供 START_REGISTRATION 建議",
+      "conversationHistory": [
+        {
+          "role": "user",
+          "content": "兒童籃球夏令營還有名額嗎？"
+        },
+        {
+          "role": "assistant",
+          "content": "兒童籃球夏令營（ID: aaaaaaaa-0001-0001-0001-000000000001）共 30 個名額，目前剩餘 5 個，報名截止 2026-03-10。",
+          "seenEventIds": ["aaaaaaaa-0001-0001-0001-000000000001"]
+        }
+      ],
+      "userInput": "好，我想報名這個活動",
+      "mockApiResponses": {},
+      "expectedToolCalls": [],
+      "passCriteria": [
+        { "type": "no_tool_calls", "description": "資訊已知，不需再呼叫工具" },
+        { "type": "suggestions_include_action", "value": "START_REGISTRATION" },
+        { "type": "answer_contains", "value": "aaaaaaaa-0001-0001-0001-000000000001", "description": "引導報名時必須引用 eventId" },
+        { "type": "answer_not_contains", "value": "身分證", "description": "不應要求非必要個資" }
+      ],
+      "failExamples": [
+        "呼叫 getEventDetail 重複查詢已知資訊（浪費工具呼叫）",
+        "回應中沒有提供報名頁面的引導"
+      ]
+    },
+    {
+      "id": "E01",
+      "category": "edge",
+      "description": "年齡恰好在最小值邊界（ageMin=8，孩子=8歲）：應視為符合資格，不顯示任何警告",
+      "conversationHistory": [],
+      "userInput": "我 8 歲的小孩可以參加這個活動嗎？",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 1,
+          "events": [
+            { "id": "dddddddd-0004-0004-0004-000000000001", "name": "兒童籃球體能訓練", "ageRange": "8-12 歲", "startTime": "2026-04-01T09:00:00+08:00", "location": "台北市", "registrationStatus": "OPEN" }
+          ],
+          "page": { "page": 0, "size": 10, "totalElements": 1, "totalPages": 1, "hasNext": false, "hasPrevious": false }
+        },
+        "getEventDetail": {
+          "id": "dddddddd-0004-0004-0004-000000000001",
+          "name": "兒童籃球體能訓練",
+          "ageRestriction": { "minAge": 8, "maxAge": 12, "description": "8-12 歲", "strictEnforcement": true },
+          "capacity": 20, "registeredCount": 10,
+          "fee": 1800,
+          "registrationDeadline": "2026-03-25T23:59:00+08:00",
+          "registrationStatus": "OPEN",
+          "startTime": "2026-04-01T09:00:00+08:00",
+          "location": "台北市"
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "searchEvents", "inputContains": { "age": 8 } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "searchEvents" },
+        { "type": "answer_not_contains", "value": "不符合", "description": "8 歲符合 8-12 範圍，不應說不符合" },
+        { "type": "answer_not_contains", "value": "警告", "description": "嚴格模式邊界內不應有警告" },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "您的小孩 8 歲，稍微低於建議年齡（錯誤：8 ≥ ageMin=8，符合資格）",
+        "此活動需要 8 歲以上（正確）但又說可能有限制（矛盾）"
+      ]
+    },
+    {
+      "id": "E02",
+      "category": "edge",
+      "description": "年齡恰好在最大值邊界（ageMax=12，孩子=12歲）：應視為符合資格",
+      "conversationHistory": [],
+      "userInput": "我小孩 12 歲，適合參加 8-12 歲的活動嗎？",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 1,
+          "events": [
+            { "id": "eeeeeeee-0005-0005-0005-000000000001", "name": "籃球技術精進班", "ageRange": "8-12 歲", "startTime": "2026-04-10T09:00:00+08:00", "location": "新北市", "registrationStatus": "OPEN" }
+          ],
+          "page": { "page": 0, "size": 10, "totalElements": 1, "totalPages": 1, "hasNext": false, "hasPrevious": false }
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "searchEvents", "inputContains": { "age": 12 } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "searchEvents" },
+        { "type": "answer_not_contains", "value": "不符合" },
+        { "type": "answer_not_contains", "value": "超出" },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "您的小孩 12 歲已超出最大年齡限制（錯誤：12 ≤ ageMax=12，符合資格）"
+      ]
+    },
+    {
+      "id": "E03",
+      "category": "edge",
+      "description": "彈性年齡模式（strictEnforcement=false，孩子 13 歲，活動範圍 8-12）：允許報名但必須顯示年齡警告",
+      "conversationHistory": [
+        {
+          "role": "user",
+          "content": "我 13 歲的小孩想報名親子籃球體驗日"
+        },
+        {
+          "role": "assistant",
+          "content": "找到親子籃球體驗日（ID: ffffffff-0006-0006-0006-000000000001），讓我查詢詳情。",
+          "seenEventIds": ["ffffffff-0006-0006-0006-000000000001"]
+        }
+      ],
+      "userInput": "這個活動他可以參加嗎？",
+      "mockApiResponses": {
+        "getEventDetail": {
+          "id": "ffffffff-0006-0006-0006-000000000001",
+          "name": "親子籃球體驗日",
+          "ageRestriction": { "minAge": 8, "maxAge": 12, "description": "8-12 歲（彈性）", "strictEnforcement": false },
+          "capacity": 30, "registeredCount": 10,
+          "fee": 800,
+          "registrationDeadline": "2026-04-01T23:59:00+08:00",
+          "registrationStatus": "OPEN",
+          "startTime": "2026-04-05T10:00:00+08:00",
+          "location": "桃園市中壢區"
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "getEventDetail", "inputContains": { "id": "ffffffff-0006-0006-0006-000000000001" } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "getEventDetail" },
+        { "type": "answer_contains", "value": "13", "description": "必須明確提到孩子的年齡" },
+        { "type": "answer_contains", "value": "彈性", "description": "必須說明這是彈性年齡規定" },
+        { "type": "answer_contains", "value": "警告", "description": "應告知報名後會出現警告訊息，或以相近措辭說明" },
+        { "type": "suggestions_include_action", "value": "START_REGISTRATION", "description": "彈性模式仍應提供報名入口" },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "不允許報名，年齡不符合（錯誤：彈性模式應允許報名）",
+        "可以直接報名（未告知年齡警告）"
+      ]
+    },
+    {
+      "id": "E04",
+      "category": "edge",
+      "description": "最後一個名額：Agent 應特別強調緊迫性，避免使用者錯失",
+      "conversationHistory": [],
+      "userInput": "夏令營還有位子嗎？",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 1,
+          "events": [
+            { "id": "11111111-aaaa-bbbb-cccc-000000000001", "name": "暑期籃球夏令營", "ageRange": "8-14 歲", "startTime": "2026-07-01T08:00:00+08:00", "location": "台北市", "registrationStatus": "OPEN" }
+          ],
+          "page": { "page": 0, "size": 10, "totalElements": 1, "totalPages": 1, "hasNext": false, "hasPrevious": false }
+        },
+        "getEventDetail": {
+          "id": "11111111-aaaa-bbbb-cccc-000000000001",
+          "name": "暑期籃球夏令營",
+          "ageRestriction": { "minAge": 8, "maxAge": 14, "description": "8-14 歲", "strictEnforcement": true },
+          "capacity": 30,
+          "registeredCount": 29,
+          "registrationStatus": "OPEN",
+          "fee": 3500,
+          "registrationDeadline": "2026-06-15T23:59:00+08:00",
+          "startTime": "2026-07-01T08:00:00+08:00",
+          "location": "台北市"
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "searchEvents" },
+        { "name": "getEventDetail", "inputContains": { "id": "11111111-aaaa-bbbb-cccc-000000000001" } }
+      ],
+      "passCriteria": [
+        { "type": "answer_contains", "value": "1", "description": "應明確說明只剩 1 個名額" },
+        { "type": "answer_contains", "value": "11111111-aaaa-bbbb-cccc-000000000001" },
+        { "type": "suggestions_include_action", "value": "START_REGISTRATION", "description": "剩最後名額應主動提供報名入口" },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "名額還很充裕（錯誤：只剩 1 個）",
+        "還有幾個名額（模糊說法，應明確說「1 個」）"
+      ]
+    },
+    {
+      "id": "E05",
+      "category": "edge",
+      "description": "多筆結果中使用者以序數選擇（「第二個」）：Agent 必須正確對應到 searchEvents 回傳的第二筆 ID",
+      "conversationHistory": [
+        {
+          "role": "user",
+          "content": "找 10 歲的游泳活動"
+        },
+        {
+          "role": "assistant",
+          "content": "找到 2 個活動：\n1. 兒童游泳精進班（ID: 22222222-0001-0001-0001-000000000001）台北市，3/10\n2. 游泳啟蒙課程（ID: 22222222-0001-0001-0001-000000000002）新北市，3/20",
+          "seenEventIds": ["22222222-0001-0001-0001-000000000001", "22222222-0001-0001-0001-000000000002"]
+        }
+      ],
+      "userInput": "我想了解第二個",
+      "mockApiResponses": {
+        "getEventDetail": {
+          "id": "22222222-0001-0001-0001-000000000002",
+          "name": "游泳啟蒙課程",
+          "ageRestriction": { "minAge": 6, "maxAge": 12, "description": "6-12 歲", "strictEnforcement": true },
+          "capacity": 15, "registeredCount": 8,
+          "fee": 2200,
+          "registrationDeadline": "2026-03-15T23:59:00+08:00",
+          "registrationStatus": "OPEN",
+          "startTime": "2026-03-20T09:00:00+08:00",
+          "location": "新北市三重區"
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "getEventDetail", "inputContains": { "id": "22222222-0001-0001-0001-000000000002" } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "getEventDetail" },
+        { "type": "answer_not_contains", "value": "22222222-0001-0001-0001-000000000001", "description": "不應回傳第一個活動的 ID" },
+        { "type": "answer_contains", "value": "22222222-0001-0001-0001-000000000002", "description": "必須使用第二個活動的 ID" },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "getEventDetail 使用了第一個活動的 ID（序數對應錯誤）",
+        "getEventDetail 使用了不存在於 seenEventIds 的 ID"
+      ]
+    },
+    {
+      "id": "M01",
+      "category": "missing_info",
+      "description": "使用者提及有孩子但未說明年齡：Agent 必須先詢問年齡，不得猜測或跳過直接呼叫工具",
+      "conversationHistory": [],
+      "userInput": "幫我找活動，我的小孩想參加運動課程",
+      "mockApiResponses": {},
+      "expectedToolCalls": [],
+      "passCriteria": [
+        { "type": "no_tool_calls", "description": "年齡不明時不應呼叫任何工具" },
+        { "type": "asks_clarification", "description": "回答中必須詢問孩子年齡" },
+        { "type": "sources_empty" },
+        { "type": "answer_contains", "value": "幾歲", "description": "必須詢問年齡" }
+      ],
+      "failExamples": [
+        "呼叫 searchEvents 時 age 欄位為空（未確認年齡就搜尋）",
+        "我猜您的小孩大約 8-10 歲，已找到以下活動（憑空猜測年齡）"
+      ]
+    },
+    {
+      "id": "M02",
+      "category": "missing_info",
+      "description": "模糊時間描述（「最近」）：Agent 應詢問具體日期範圍，不得自行假設",
+      "conversationHistory": [],
+      "userInput": "有沒有適合 9 歲的活動，最近的",
+      "mockApiResponses": {},
+      "expectedToolCalls": [],
+      "passCriteria": [
+        { "type": "asks_clarification", "description": "應詢問具體時間範圍" },
+        { "type": "no_tool_calls", "description": "應先確認時間再呼叫工具" },
+        { "type": "answer_contains", "value": "時間", "description": "應詢問偏好的時間或月份" }
+      ],
+      "notes": "此案例允許兩種可接受行為：(1) 詢問具體月份 (2) 直接搜尋不加日期篩選（因年齡已知）。評估重點在於不得自行假設「最近 = 本月」",
+      "failExamples": [
+        "呼叫 searchEvents 時 dateFrom 設為今天、dateTo 設為 30 天後（自行假設「最近」的定義）",
+        "呼叫 searchEvents 時 dateFrom 設為某個具體日期但未詢問使用者（超出合理推斷範圍）"
+      ]
+    },
+    {
+      "id": "M03",
+      "category": "missing_info",
+      "description": "表達想報名但未說明是哪個活動（多輪語境不明）：Agent 應詢問確認目標活動",
+      "conversationHistory": [
+        {
+          "role": "user",
+          "content": "有什麼游泳活動嗎"
+        },
+        {
+          "role": "assistant",
+          "content": "找到 3 個游泳活動，請問您想了解哪一個？",
+          "seenEventIds": [
+            "33333333-0001-0001-0001-000000000001",
+            "33333333-0001-0001-0001-000000000002",
+            "33333333-0001-0001-0001-000000000003"
+          ]
+        }
+      ],
+      "userInput": "我想報名",
+      "mockApiResponses": {},
+      "expectedToolCalls": [],
+      "passCriteria": [
+        { "type": "no_tool_calls" },
+        { "type": "asks_clarification", "description": "應詢問要報名哪一個活動" },
+        { "type": "sources_empty" }
+      ],
+      "failExamples": [
+        "呼叫 getEventDetail（未確認是哪個活動）",
+        "假設使用者要報名第一個（自行決定）"
+      ]
+    },
+    {
+      "id": "M04",
+      "category": "missing_info",
+      "description": "使用者提供賽事名稱（非 ID）要求查詢詳情：Agent 必須先 searchEvents 以取得合法 ID，不得自行組合 ID",
+      "conversationHistory": [],
+      "userInput": "我想知道兒童籃球夏令營的費用",
+      "mockApiResponses": {
+        "searchEvents": {
+          "found": 1,
+          "events": [
+            { "id": "44444444-0001-0001-0001-000000000001", "name": "兒童籃球夏令營", "ageRange": "8-12 歲", "startTime": "2026-03-15T08:00:00+08:00", "location": "台北市", "registrationStatus": "OPEN" }
+          ],
+          "page": { "page": 0, "size": 10, "totalElements": 1, "totalPages": 1, "hasNext": false, "hasPrevious": false }
+        },
+        "getEventDetail": {
+          "id": "44444444-0001-0001-0001-000000000001",
+          "name": "兒童籃球夏令營",
+          "fee": 2000,
+          "capacity": 30, "registeredCount": 25,
+          "registrationStatus": "OPEN",
+          "ageRestriction": { "minAge": 8, "maxAge": 12, "description": "8-12 歲", "strictEnforcement": true },
+          "startTime": "2026-03-15T08:00:00+08:00",
+          "registrationDeadline": "2026-03-10T23:59:00+08:00",
+          "location": "台北市"
+        }
+      },
+      "expectedToolCalls": [
+        { "name": "searchEvents" },
+        { "name": "getEventDetail", "inputContains": { "id": "44444444-0001-0001-0001-000000000001" } }
+      ],
+      "passCriteria": [
+        { "type": "tool_called", "value": "searchEvents", "description": "必須先搜尋取得合法 ID" },
+        { "type": "tool_called", "value": "getEventDetail" },
+        { "type": "answer_contains", "value": "2,000" },
+        { "type": "answer_contains", "value": "44444444-0001-0001-0001-000000000001" },
+        { "type": "no_fabricated_ids" }
+      ],
+      "failExamples": [
+        "直接呼叫 getEventDetail 並自行組合 ID（未先透過 searchEvents 取得合法 ID）",
+        "兒童籃球夏令營費用大約是 2000-3000 元（未呼叫工具就給出費用）"
+      ]
+    },
+    {
+      "id": "M05",
+      "category": "missing_info",
+      "description": "使用者提供未經工具驗證的 eventId：Orchestrator 的 seenEventIds 防護應阻止此呼叫，Agent 應重新搜尋",
+      "conversationHistory": [],
+      "userInput": "請查詢這個活動 00000000-ffff-ffff-ffff-000000000099 的詳細資訊",
+      "mockApiResponses": {
+        "getEventDetail_blocked": {
+          "error": true,
+          "code": "UNVERIFIED_ID",
+          "message": "ID '00000000-ffff-ffff-ffff-000000000099' 未在本 session 的 searchEvents 結果中出現，無法查詢。"
+        },
+        "searchEvents": {
+          "found": 0,
+          "events": [],
+          "page": { "page": 0, "size": 10, "totalElements": 0, "totalPages": 0, "hasNext": false, "hasPrevious": false }
+        }
+      },
+      "expectedToolCalls": [],
+      "passCriteria": [
+        { "type": "no_fabricated_ids", "description": "不得以使用者提供的未驗證 ID 呼叫 getEventDetail" },
+        { "type": "answer_not_contains", "value": "00000000-ffff-ffff-ffff-000000000099", "description": "回覆中不應重複此未驗證 ID（即便來自使用者輸入）" },
+        { "type": "answer_not_contains", "value": "HTTP" },
+        { "type": "suggestions_include_action", "value": "SEARCH_EVENTS", "description": "應引導使用者重新搜尋" }
+      ],
+      "failExamples": [
+        "呼叫 getEventDetail({ id: '00000000-ffff-ffff-ffff-000000000099' })（繞過 seenEventIds 防護）",
+        "找不到 ID 為 00000000-ffff-ffff-ffff-000000000099 的活動（在回覆中重複使用者提供的未驗證 ID）"
+      ]
+    }
+  ]
+}
