@@ -1,0 +1,119 @@
+.tableWrapper {
+  overflow-x: auto;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.th {
+  padding: var(--spacing-3) var(--spacing-4);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--gray-200);
+  white-space: nowrap;
+  background-color: var(--gray-50);
+}
+
+.tr {
+  border-bottom: 1px solid var(--gray-100);
+  transition: background-color 0.15s ease;
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.tr:hover {
+  background-color: var(--gray-50);
+}
+
+.td {
+  padding: var(--spacing-3) var(--spacing-4);
+  vertical-align: middle;
+  color: var(--gray-700);
+}
+
+.tdName {
+  padding: var(--spacing-3) var(--spacing-4);
+  vertical-align: middle;
+  min-width: 200px;
+}
+
+.eventName {
+  display: block;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-1);
+}
+
+.eventLocation {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+}
+
+.dateText {
+  white-space: nowrap;
+  color: var(--gray-600);
+}
+
+.revenue {
+  font-weight: 500;
+  color: var(--gray-900);
+  white-space: nowrap;
+}
+
+.na {
+  color: var(--gray-400);
+}
+
+/* Status badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: 9999px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.badgeOpen {
+  color: var(--status-open);
+  background-color: var(--status-open-bg);
+}
+
+.badgeFull {
+  color: var(--status-full);
+  background-color: var(--status-full-bg);
+}
+
+.badgeClosed {
+  color: var(--status-closed);
+  background-color: var(--status-closed-bg);
+}
+
+.badgeCancelled {
+  color: #92400e;
+  background-color: #fef3c7;
+}

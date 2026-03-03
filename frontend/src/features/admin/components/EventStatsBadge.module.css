@@ -1,0 +1,60 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 80px;
+}
+
+.numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.confirmed {
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.sep {
+  color: var(--gray-400);
+}
+
+.capacity {
+  color: var(--gray-500);
+}
+
+.track {
+  height: 4px;
+  background-color: var(--gray-200);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.fillFull {
+  background-color: var(--status-full);
+}
+
+/* Compact badge variant */
+.compactBadge {
+  display: inline-block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--gray-700);
+  background-color: var(--gray-100);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+}
+
+.compactBadge.full {
+  color: var(--status-full);
+  background-color: var(--status-full-bg);
+}

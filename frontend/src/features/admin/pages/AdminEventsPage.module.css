@@ -1,0 +1,313 @@
+/* ===== Page Layout ===== */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--gray-50);
+}
+
+/* ===== Header ===== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #fff;
+  border-bottom: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  height: var(--header-height);
+}
+
+.headerInner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-4);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerBrand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.headerIcon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.headerTitle {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.logoutBtn {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--gray-600);
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  min-height: 36px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.logoutBtn:hover {
+  background-color: var(--gray-100);
+  color: var(--gray-800);
+}
+
+/* ===== Main ===== */
+.main {
+  flex: 1;
+  padding: var(--spacing-5) 0 var(--spacing-10);
+}
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-4);
+}
+
+/* ===== Page heading row ===== */
+.pageHeadingRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+  flex-wrap: wrap;
+}
+
+.h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: var(--spacing-1);
+}
+
+.subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+.subtitle strong {
+  color: var(--gray-900);
+  font-weight: 600;
+}
+
+.newEventBtn {
+  padding: var(--spacing-3) var(--spacing-5);
+  background-color: var(--primary-color);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.newEventBtn:hover {
+  background-color: var(--primary-hover);
+}
+
+/* ===== Success banner ===== */
+.successBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--status-open-bg);
+  color: var(--status-open);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  margin-bottom: var(--spacing-4);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Filters ===== */
+.filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-5);
+  padding: var(--spacing-4);
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 140px;
+}
+
+.filterLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filterSelect,
+.filterInput {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--gray-800);
+  background: #fff;
+  min-height: 40px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.filterSelect:focus,
+.filterInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.clearFiltersBtn {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  min-height: 40px;
+  transition: background-color 0.15s ease;
+  align-self: flex-end;
+  white-space: nowrap;
+}
+
+.clearFiltersBtn:hover {
+  background-color: var(--gray-200);
+}
+
+/* ===== State wrappers ===== */
+.stateWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+/* ===== Empty state ===== */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--spacing-10) var(--spacing-4);
+  gap: var(--spacing-3);
+}
+
+.emptyIcon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.emptyTitle {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.emptyDesc {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+.emptyAction {
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--primary-color);
+  border: none;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  transition: background-color 0.15s ease;
+}
+
+.emptyAction:hover {
+  background-color: var(--primary-hover);
+}
+
+/* ===== Desktop table (hidden on mobile) ===== */
+.desktopOnly {
+  display: none;
+}
+
+/* ===== Mobile card list (visible on mobile) ===== */
+.mobileCardList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* ===== Tablet (768px) ===== */
+@media (min-width: 768px) {
+  .container {
+    padding: 0 var(--spacing-6);
+  }
+
+  .h1 {
+    font-size: calc(var(--font-size-2xl) * 1.2);
+  }
+
+  .filterGroup {
+    flex: none;
+    min-width: unset;
+  }
+
+  /* Show table, hide cards */
+  .desktopOnly {
+    display: block;
+  }
+
+  .mobileCardList {
+    display: none;
+  }
+}
+
+/* ===== Desktop (1024px) ===== */
+@media (min-width: 1024px) {
+  .main {
+    padding: var(--spacing-8) 0 var(--spacing-12);
+  }
+
+  .container {
+    padding: 0 var(--spacing-8);
+  }
+}
+
+/* ===== Large Desktop (1280px) ===== */
+@media (min-width: 1280px) {
+  .container {
+    padding: 0 var(--spacing-10);
+  }
+}

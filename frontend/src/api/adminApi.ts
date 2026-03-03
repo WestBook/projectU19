@@ -11,15 +11,22 @@ export interface AdminGetEventsParams {
   sort?: string
 }
 
-// X-Admin-Token is injected automatically by the request interceptor
+const getAdminToken = (): string =>
+  localStorage.getItem('admin_token') || import.meta.env.VITE_ADMIN_TOKEN || ''
+
 export async function adminGetEvents(
   params?: AdminGetEventsParams
 ): Promise<AdminEventPageResponse> {
-  const response = await apiClient.get<AdminEventPageResponse>('/api/admin/events', { params })
+  const response = await apiClient.get<AdminEventPageResponse>('/api/admin/events', {
+    params,
+    headers: { 'X-Admin-Token': getAdminToken() },
+  })
   return response.data
 }
 
 export async function adminCreateEvent(data: CreateEventRequest): Promise<ApiResponse<AdminEvent>> {
-  const response = await apiClient.post<ApiResponse<AdminEvent>>('/api/admin/events', data)
+  const response = await apiClient.post<ApiResponse<AdminEvent>>('/api/admin/events', data, {
+    headers: { 'X-Admin-Token': getAdminToken() },
+  })
   return response.data
 }
