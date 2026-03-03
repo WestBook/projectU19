@@ -3,6 +3,7 @@ import { EventListPage } from '@/features/events/pages/EventListPage'
 import { EventDetailPage } from '@/features/events/pages/EventDetailPage'
 import { OrderFormPage } from '@/features/orders/pages/OrderFormPage'
 import { AdminEventsPage } from '@/features/admin/pages/AdminEventsPage'
+import { ChatWidget } from '@/features/chat/components/ChatWidget'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/orders/new" element={<OrderFormPage />} />
         <Route path="/admin" element={<AdminEventsPage />} />
       </Routes>
+      <ChatWidget />
     </BrowserRouter>
   )
 }
