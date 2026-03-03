@@ -1,0 +1,129 @@
+.card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+}
+
+.card[role='button'] {
+  cursor: pointer;
+}
+
+.card[role='button']:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card[role='button']:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.name {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--gray-900);
+  line-height: 1.4;
+}
+
+.metaList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+}
+
+.metaIcon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.fee {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--gray-800);
+  font-size: var(--font-size-sm);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--spacing-1);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: var(--radius-xl);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.statusOpen {
+  color: var(--status-open);
+  background-color: var(--status-open-bg);
+}
+
+.statusClosed {
+  color: var(--status-closed);
+  background-color: var(--status-closed-bg);
+}
+
+.statusFull {
+  color: var(--status-full);
+  background-color: var(--status-full-bg);
+}
+
+.capacity {
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+}
+
+.footer {
+  margin-top: var(--spacing-1);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detailButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--primary-color);
+  background-color: var(--primary-light);
+  border: none;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.detailButton:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.detailButton:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}

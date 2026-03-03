@@ -1,0 +1,198 @@
+.wrapper {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Mobile toggle button - visible on mobile, hidden on desktop */
+.toggleButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-4) var(--spacing-5);
+  background: none;
+  border: none;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--gray-800);
+  cursor: pointer;
+  min-height: 52px;
+  text-align: left;
+}
+
+.toggleButton:hover {
+  background-color: var(--gray-50);
+}
+
+.toggleButton:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: -3px;
+}
+
+.chevron {
+  display: inline-block;
+  font-size: 1.25rem;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+  color: var(--gray-500);
+}
+
+.chevronUp {
+  transform: rotate(-90deg);
+}
+
+/* Panel */
+.panel {
+  padding: 0 var(--spacing-5) var(--spacing-5);
+  border-top: 1px solid var(--gray-200);
+}
+
+.panelClosed {
+  display: none;
+}
+
+.panelOpen {
+  display: block;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding-top: var(--spacing-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.input,
+.select {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-base);
+  color: var(--gray-800);
+  background-color: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  appearance: auto;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.input::placeholder {
+  color: var(--gray-400);
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-5);
+}
+
+.applyButton {
+  flex: 1;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--primary-color);
+  border: none;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  transition: background-color 0.2s ease;
+}
+
+.applyButton:hover {
+  background-color: var(--primary-hover);
+}
+
+.applyButton:focus-visible {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.clearButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--gray-600);
+  background-color: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  min-height: 44px;
+  min-width: 72px;
+  transition: background-color 0.2s ease;
+}
+
+.clearButton:hover {
+  background-color: var(--gray-100);
+}
+
+.clearButton:focus-visible {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+/* Tablet and Desktop: horizontal layout */
+@media (min-width: 768px) {
+  /* Always show panel on tablet+ */
+  .toggleButton {
+    display: none;
+  }
+
+  .panel {
+    display: block !important;
+    border-top: none;
+    padding: var(--spacing-4) var(--spacing-5);
+  }
+
+  .fields {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    padding-top: 0;
+    gap: var(--spacing-3);
+  }
+
+  .field {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .actions {
+    margin-top: 0;
+    align-items: flex-end;
+    flex-shrink: 0;
+    gap: var(--spacing-2);
+  }
+
+  .applyButton {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1024px) {
+  .field {
+    min-width: 160px;
+  }
+}
