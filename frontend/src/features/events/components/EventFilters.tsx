@@ -32,7 +32,7 @@ export function EventFilters({ initialFilters, onApply, onClear }: EventFiltersP
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleApply = (e: React.FormEvent) => {
+  const handleApply = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     onApply({
       age: form.age ? Number(form.age) : undefined,
