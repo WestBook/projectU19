@@ -1,24 +1,47 @@
-version: "3.9"
+# ── 服務啟動順序 ──────────────────────────────────────────────────────────────
+#   db → app (backend) → ai-agent → frontend
+#
+# ── 對外埠號 ──────────────────────────────────────────────────────────────────
+#   80   → frontend  (nginx，含對 /api/ai/ 及 /api/ 的反向代理)
+#   8080 → app       (Spring Boot，可直接存取，開發除錯用)
+#   3001 → ai-agent  (Node.js，僅在開發時公開，正式可移除)
+#   5432 → db        (PostgreSQL，僅在開發時公開，正式可移除)
+#
+# ── 啟動前必要設定 ─────────────────────────────────────────────────────────────
+#   1. 複製 .env.example → .env 並填入真實值
+#   2. 後端：先執行 ./gradlew bootJar 產生 build/libs/*.jar
+#   3. 執行：docker compose up --build
 
 services:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # PostgreSQL 資料庫
+  # ────────────────────────────────────────────────────────────────────────────
   db:
     image: postgres:15-alpine
     container_name: sports_event_db
     environment:
       POSTGRES_DB: sports_event_db
-      POSTGRES_USER: bloodsword1147
-      POSTGRES_PASSWORD: ""
+      POSTGRES_USER: ${POSTGRES_USER:-bloodsword1147}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bloodsword1147 -d sports_event_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bloodsword1147} -d sports_event_db"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+    restart: unless-stopped
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # Spring Boot 後端
+  # 必要條件：先執行 ./gradlew bootJar
+  # ────────────────────────────────────────────────────────────────────────────
   app:
     build:
       context: .
@@ -28,18 +51,95 @@ services:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/sports_event_db
-      SPRING_DATASOURCE_USERNAME: bloodsword1147
-      SPRING_DATASOURCE_PASSWORD: ""
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-bloodsword1147}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-demo-admin-secret-2026}
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - backend-net
+      - agent-net
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # AI Agent — Node.js tool-calling orchestrator
+  # Build context 為根目錄，Dockerfile 會從各子目錄複製所需檔案
+  # ────────────────────────────────────────────────────────────────────────────
+  ai-agent:
+    build:
+      context: .
+      dockerfile: ai-agent/Dockerfile
+    container_name: sports_ai_agent
+    ports:
+      - "3001:3001"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      PLATFORM_BASE_URL: http://app:8080
+      PORT: 3001
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - agent-net
+      - frontend-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # React 前端 — nginx 靜態服務 + 反向代理
+  # Vite 環境變數在 build 時注入，不可在執行期更改
+  # ────────────────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Vite 變數在 build time 注入；容器內 nginx 代理到 app/ai-agent
+        # 設為 "" 讓 axios 使用相對路徑，由 nginx 代理
+        VITE_API_BASE_URL: ""
+        VITE_ADMIN_TOKEN: ${ADMIN_API_KEY:-demo-admin-secret-2026}
+    container_name: sports_event_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_healthy
+      ai-agent:
+        condition: service_healthy
+    networks:
+      - frontend-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/index.html || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+# ── 網路隔離 ──────────────────────────────────────────────────────────────────
+# backend-net: db ↔ app（資料庫只對後端可見）
+# agent-net:   app ↔ ai-agent（AI 服務呼叫平台 API）
+# frontend-net: ai-agent ↔ frontend（nginx 代理 AI 端點）
+
+networks:
+  backend-net:
+    driver: bridge
+  agent-net:
+    driver: bridge
+  frontend-net:
+    driver: bridge
 
 volumes:
   postgres_data:
