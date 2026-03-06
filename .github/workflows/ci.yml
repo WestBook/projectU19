@@ -1,0 +1,101 @@
+# .github/workflows/ci.yml
+# CI Pipeline — 在每次 push / PR 時自動執行
+#
+# Jobs（並行）：
+#   frontend  → lint → test → build
+#   backend   → test → bootJar
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 只保留同一個 ref 最新一次執行，取消舊的（節省 CI 分鐘）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend (lint / test / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+        env:
+          # build time 注入空字串，讓 axios 使用相對路徑
+          VITE_API_BASE_URL: ''
+          VITE_ADMIN_TOKEN: 'ci-dummy-token'
+
+  # ── Backend ──────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend (test / bootJar)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+        env:
+          # 強制使用 H2 測試 profile，無需外部 PostgreSQL
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Build JAR
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: build/reports/tests/test/
+          retention-days: 7
