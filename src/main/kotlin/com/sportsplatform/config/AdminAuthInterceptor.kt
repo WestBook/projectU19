@@ -28,6 +28,11 @@ class AdminAuthInterceptor(
         response: HttpServletResponse,
         handler: Any
     ): Boolean {
+        // Allow CORS preflight requests to pass through without token validation
+        if (request.method.equals("OPTIONS", ignoreCase = true)) {
+            return true
+        }
+
         val token = request.getHeader("X-Admin-Token")
 
         if (token.isNullOrBlank() || token != adminApiKey) {
