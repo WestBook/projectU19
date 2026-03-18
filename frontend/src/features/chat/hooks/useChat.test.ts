@@ -42,7 +42,7 @@ describe('useChat', () => {
     vi.mocked(chatApi.sendChatMessage).mockReturnValue(
       new Promise<chatApi.ChatResponse>((res) => {
         resolveAi = res
-      }),
+      })
     )
 
     const { result } = renderHook(() => useChat())
@@ -69,7 +69,7 @@ describe('useChat', () => {
     vi.mocked(chatApi.sendChatMessage).mockReturnValue(
       new Promise<chatApi.ChatResponse>((res) => {
         resolveAi = res
-      }),
+      })
     )
 
     const { result } = renderHook(() => useChat())
@@ -109,7 +109,7 @@ describe('useChat', () => {
 
     // AI reply must be present
     const aiMsg = result.current.messages.find(
-      (m) => m.role === 'assistant' && m.content === '我是 AI 回應',
+      (m) => m.role === 'assistant' && m.content === '我是 AI 回應'
     )
     expect(aiMsg).toBeDefined()
   })

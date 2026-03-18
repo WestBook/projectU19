@@ -67,7 +67,9 @@ async function platformFetch<T>(
   })
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: { code?: string; message?: string } }
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: { code?: string; message?: string }
+    }
     const code = body.error?.code ?? 'UNKNOWN_ERROR'
     const message = body.error?.message ?? `HTTP ${response.status}`
     throw Object.assign(new Error(message), { code, statusCode: response.status })

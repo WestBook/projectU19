@@ -241,7 +241,10 @@ async function agentLoop(
     }
 
     // ── 終止條件：對話結束 ──
-    if (claudeResponse.stop_reason === 'end_turn' || claudeResponse.stop_reason === 'stop_sequence') {
+    if (
+      claudeResponse.stop_reason === 'end_turn' ||
+      claudeResponse.stop_reason === 'stop_sequence'
+    ) {
       const text = extractTextFromContent(claudeResponse.content)
       return {
         response: text || '抱歉，我目前無法回覆，請重新提問。',
@@ -285,9 +288,7 @@ async function agentLoop(
 
     // 平行執行所有工具（大多數對話只有一個，但允許多個）
     const toolResults = await Promise.all(
-      toolUseBlocks.map((block) =>
-        executeToolBlock(block, config, seenEventIds, sessionToolCount)
-      )
+      toolUseBlocks.map((block) => executeToolBlock(block, config, seenEventIds, sessionToolCount))
     )
 
     // 將工具結果加入歷史（role: 'user'，content 為 tool_result 陣列）
@@ -298,7 +299,8 @@ async function agentLoop(
 
   // 超過 maxTurns 上限
   return {
-    response: '抱歉，這個問題我需要查詢太多次才能回答，請試著更具體地描述您的需求，例如孩子的年齡和希望的活動地點。',
+    response:
+      '抱歉，這個問題我需要查詢太多次才能回答，請試著更具體地描述您的需求，例如孩子的年齡和希望的活動地點。',
     seenEventIds: [...seenEventIds],
     toolCallCount: sessionToolCount.value,
     turnsUsed,
@@ -321,7 +323,8 @@ export async function runAgentTurn(
   userMessage: string,
   history: ClaudeMessage[],
   systemPrompt: string,
-  configOverrides: Partial<OrchestratorConfig> & Pick<OrchestratorConfig, 'apiKey' | 'platformBaseUrl'>,
+  configOverrides: Partial<OrchestratorConfig> &
+    Pick<OrchestratorConfig, 'apiKey' | 'platformBaseUrl'>,
   sessionState: {
     seenEventIds: Set<string>
     sessionToolCount: { value: number }
@@ -329,10 +332,13 @@ export async function runAgentTurn(
 ): Promise<OrchestratorResult> {
   const config: OrchestratorConfig = { ...DEFAULT_CONFIG, ...configOverrides }
 
-  const messages: ClaudeMessage[] = [
-    ...history,
-    { role: 'user', content: userMessage },
-  ]
+  const messages: ClaudeMessage[] = [...history, { role: 'user', content: userMessage }]
 
-  return agentLoop(messages, systemPrompt, config, sessionState.seenEventIds, sessionState.sessionToolCount)
+  return agentLoop(
+    messages,
+    systemPrompt,
+    config,
+    sessionState.seenEventIds,
+    sessionState.sessionToolCount
+  )
 }

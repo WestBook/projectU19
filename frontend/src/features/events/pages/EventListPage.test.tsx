@@ -59,7 +59,7 @@ function renderPage() {
   return render(
     <MemoryRouter>
       <EventListPage />
-    </MemoryRouter>,
+    </MemoryRouter>
   )
 }
 
@@ -98,7 +98,7 @@ describe('EventListPage', () => {
     vi.mocked(eventsApi.getEvents).mockReturnValue(
       new Promise<PageResponse<Event>>((res) => {
         resolvePromise = res
-      }),
+      })
     )
 
     // Act

@@ -40,11 +40,11 @@ next-env.d.ts
 build/
 out/
 bin/
-!gradle/wrapper/gradle-wrapper.jar
 *.jar
 *.war
 *.ear
 *.class
+!gradle/wrapper/gradle-wrapper.jar
 
 # IntelliJ IDEA
 .idea/
