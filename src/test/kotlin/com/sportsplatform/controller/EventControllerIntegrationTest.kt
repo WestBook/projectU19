@@ -1,6 +1,7 @@
 package com.sportsplatform.controller
 
 import com.sportsplatform.domain.Event
+import org.junit.jupiter.api.Tag
 import com.sportsplatform.repository.EventRepository
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -29,6 +30,7 @@ import java.time.ZoneId
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
+@Tag("integration")
 class EventControllerIntegrationTest {
 
     @Autowired

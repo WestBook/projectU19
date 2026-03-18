@@ -21,7 +21,7 @@ class HealthCheckControllerH2Test {
     @Test
     fun `GET health returns 200 with status UP when DB is reachable`() {
         mockMvc.perform(
-            get("/health").contentType(MediaType.APPLICATION_JSON)
+            get("/api/health").contentType(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("UP"))
